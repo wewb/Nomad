@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Dashboard from './pages/Dashboard';
 import EventManagement from './pages/EventManagement';
 import Layout from './components/Layout';
-import './index.css';
+import 'tdesign-react/es/style/index.css';
 
 function App() {
   return (

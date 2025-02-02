@@ -1,10 +1,10 @@
 import React from 'react';
-import { Layout as AntLayout, Menu } from 'antd';
+import { Layout as TLayout, Menu } from 'tdesign-react';
 import { Link } from 'react-router-dom';
-import { DashboardOutlined, SettingOutlined } from '@ant-design/icons';
+import { DashboardIcon, SettingIcon } from 'tdesign-icons-react';
 import styles from './Layout.module.css';
 
-const { Header, Sider, Content } = AntLayout;
+const { Header, Aside, Content } = TLayout;
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,30 +12,26 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <AntLayout className={styles.layout}>
+    <TLayout className={styles.layout}>
       <Header className={styles.header}>
         <div className={styles.logo}>Track Platform</div>
       </Header>
-      <AntLayout>
-        <Sider width={200}>
-          <Menu
-            mode="inline"
-            defaultSelectedKeys={['dashboard']}
-            style={{ height: '100%' }}
-          >
-            <Menu.Item key="dashboard" icon={<DashboardOutlined />}>
+      <TLayout>
+        <Aside width="200px">
+          <Menu theme="light">
+            <Menu.MenuItem icon={<DashboardIcon />} value="dashboard">
               <Link to="/">Dashboard</Link>
-            </Menu.Item>
-            <Menu.Item key="events" icon={<SettingOutlined />}>
+            </Menu.MenuItem>
+            <Menu.MenuItem icon={<SettingIcon />} value="events">
               <Link to="/events">Event Management</Link>
-            </Menu.Item>
+            </Menu.MenuItem>
           </Menu>
-        </Sider>
+        </Aside>
         <Content className={styles.content}>
           {children}
         </Content>
-      </AntLayout>
-    </AntLayout>
+      </TLayout>
+    </TLayout>
   );
 };
 

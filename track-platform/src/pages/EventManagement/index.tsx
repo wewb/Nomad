@@ -1,6 +1,6 @@
 import React from 'react';
-import { Table, Button, Space } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import { Table, Button, Space } from 'tdesign-react';
+import 'tdesign-react/es/style/index.css';
 
 interface EventData {
   id: string;
@@ -10,29 +10,26 @@ interface EventData {
 }
 
 const EventManagement: React.FC = () => {
-  const columns: ColumnsType<EventData> = [
+  const columns = [
     {
+      colKey: 'name',
       title: 'Event Name',
-      dataIndex: 'name',
-      key: 'name',
     },
     {
+      colKey: 'description',
       title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
     },
     {
+      colKey: 'createdAt',
       title: 'Created At',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
     },
     {
+      colKey: 'operation',
       title: 'Action',
-      key: 'action',
-      render: () => (
-        <Space size="middle">
-          <Button type="link">Edit</Button>
-          <Button type="link" danger>Delete</Button>
+      cell: () => (
+        <Space>
+          <Button theme="primary" variant="text">Edit</Button>
+          <Button theme="danger" variant="text">Delete</Button>
         </Space>
       ),
     },
@@ -49,10 +46,10 @@ const EventManagement: React.FC = () => {
 
   return (
     <div>
-      <Button type="primary" style={{ marginBottom: 16 }}>
+      <Button theme="primary" style={{ marginBottom: 16 }}>
         Add New Event
       </Button>
-      <Table columns={columns} dataSource={data} />
+      <Table columns={columns} data={data} rowKey="id" />
     </div>
   );
 };
