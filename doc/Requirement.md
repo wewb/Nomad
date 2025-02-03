@@ -139,7 +139,3 @@ sendEvent(EventName.CLICK_EVENT, {
 #### 平台参考
 - 阿里云可观测 (https://sls.aliyun.com/doc/)
 - 阿里云CloudLens For SLS (https://help.aliyun.com/zh/sls/user-guide/cloudlens-for-sls/)
-
-![[Pasted image 20250202210550.png]]
-
-![[Pasted image 20250202210625.png]]
