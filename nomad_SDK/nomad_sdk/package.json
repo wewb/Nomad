@@ -1,0 +1,19 @@
+{
+  "name": "nomad_sdk",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:sdk": "npm run dev -w @nomad/track-sdk",
+    "dev:server": "npm run dev -w @nomad/track-server",
+    "dev:platform": "npm run dev -w @nomad/track-platform",
+    "build": "npm run build --workspaces",
+    "test": "npm run test --workspaces"
+  },
+  "dependencies": {
+    "@types/mongoose": "^5.11.96",
+    "dotenv": "^16.4.7",
+    "mongoose": "^8.10.0"
+  }
+}
