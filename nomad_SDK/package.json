@@ -1,7 +1,0 @@
-{
-  "dependencies": {
-    "@types/mongoose": "^5.11.96",
-    "dotenv": "^16.4.7",
-    "mongoose": "^8.10.0"
-  }
-}
