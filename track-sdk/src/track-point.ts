@@ -5,7 +5,7 @@ import {
   EventParams,
   UserEnvInfo,
   TrackData
-} from './types';
+} from './types.js';
 
 class TrackPoint {
   private static instance: TrackPoint;
@@ -131,22 +131,65 @@ class TrackPoint {
 
   // 发送数据到服务器
   private async sendToServer(data: TrackData): Promise<void> {
-    const apiUrl = this.config.apiUrl || 'https://api.track-point.example.com/track';
+    console.log('Sending data to server:', data);
+    const maxRetries = 3;
+    let retryCount = 0;
     
-    try {
-      const response = await fetch(apiUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
+    const apiUrl = this.config?.apiUrl || 'https://api.track-point.example.com/track';
+    console.log('Using API URL:', apiUrl);
+    
+    if (!apiUrl) {
+      throw new Error('API URL is not configured');
+    }
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+    while (retryCount < maxRetries) {
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(data)
+        });
+        console.log('Server response:', response);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return;
+      } catch (error) {
+        console.error('Request failed:', error);
+        retryCount++;
+        if (retryCount === maxRetries) {
+          this.saveToLocalStorage(data);
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
       }
-    } catch (error) {
-      throw error;
+    }
+  }
+
+  private saveToLocalStorage(data: TrackData): void {
+    const key = `track_${Date.now()}`;
+    try {
+      localStorage.setItem(key, JSON.stringify(data));
+    } catch (e) {
+      console.error('Failed to save to localStorage:', e);
+    }
+  }
+
+  private processPendingEvents(): void {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('track_')) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '');
+          this.requestQueue.push(data);
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.error('Failed to process pending event:', e);
+        }
+      }
     }
   }
 }

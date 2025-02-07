@@ -1,2 +1,2 @@
-export { EventName } from './types';
-export { trackPoint, register, sendEvent, addCommonParams } from './track-point'; 
+export { EventName } from './types.js';
+export { trackPoint, register, sendEvent, addCommonParams } from './track-point.js'; 

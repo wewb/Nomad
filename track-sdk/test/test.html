@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Track SDK Test</title>
+</head>
+<body>
+    <h1>Track SDK Test</h1>
+    <button id="clickButton">Test Click Event</button>
+    <button id="customButton">Test Custom Event</button>
+    <div id="status"></div>
+
+    <script type="module">
+        import { register, sendEvent, addCommonParams, EventName } from '../dist/index.js';
+
+        // 添加初始化日志
+        console.log('SDK loaded');
+
+        // 状态显示函数
+        function updateStatus(message) {
+            console.log(message); // 添加控制台日志
+            document.getElementById('status').innerHTML += `<p>${new Date().toISOString()}: ${message}</p>`;
+        }
+
+        // 初始化 SDK
+        try {
+            register({
+                projectId: 'test-project',
+                apiUrl: 'http://localhost:3000/track',
+                uploadPercent: 1
+            });
+            console.log('SDK registered');
+        } catch (error) {
+            console.error('SDK registration failed:', error);
+        }
+
+        // 添加通用参数
+        addCommonParams({
+            platform: 'web',
+            version: '1.0.0',
+            env: 'test'
+        });
+
+        // 等待 DOM 加载完成
+        document.addEventListener('DOMContentLoaded', () => {
+            const clickButton = document.getElementById('clickButton');
+            const customButton = document.getElementById('customButton');
+            
+            if (clickButton) {
+                clickButton.addEventListener('click', async () => {
+                    console.log('Click button pressed');
+                    try {
+                        await sendEvent(EventName.CLICK_EVENT, {
+                            buttonId: 'clickButton',
+                            pageUrl: window.location.href,
+                            timestamp: Date.now()
+                        });
+                        updateStatus('Click event sent successfully');
+                    } catch (error) {
+                        console.error('Error details:', error);
+                        updateStatus(`Error sending click event: ${error.message}`);
+                    }
+                });
+            }
+
+            if (customButton) {
+                customButton.addEventListener('click', async () => {
+                    console.log('Custom button pressed');
+                    try {
+                        await sendEvent(EventName.CUSTOM_EVENT, {
+                            type: 'test-custom',
+                            data: { foo: 'bar' },
+                            timestamp: Date.now()
+                        });
+                        updateStatus('Custom event sent successfully');
+                    } catch (error) {
+                        console.error('Error details:', error);
+                        updateStatus(`Error sending custom event: ${error.message}`);
+                    }
+                });
+            }
+        });
+
+        // 页面加载事件
+        window.onload = async () => {
+            try {
+                await sendEvent(EventName.PAGE_VIEW_EVENT, {
+                    page: window.location.pathname,
+                    referrer: document.referrer,
+                    timestamp: Date.now()
+                });
+                updateStatus('Page view event sent successfully');
+            } catch (error) {
+                updateStatus(`Error sending page view event: ${error.message}`);
+            }
+        };
+    </script>
+</body>
+</html> 

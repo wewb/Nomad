@@ -9,8 +9,8 @@ export enum EventName {
 // SDK 初始化配置接口
 export interface TrackConfig {
   projectId: string;
+  apiUrl: string;  // 改为必需字段
   uploadPercent?: number; // 采样率 0-1
-  apiUrl?: string; // 上报地址
   maxRequestLimit?: number; // 最大并发请求数
   batchWaitTime?: number; // 批量上报等待时间(ms)
 }
