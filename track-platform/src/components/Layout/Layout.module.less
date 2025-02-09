@@ -2,21 +2,64 @@
   height: 100vh;
   
   :global {
-    .t-layout__header {
-      background: #fff;
-      padding: 0 24px;
+    .t-layout {
+      &.t-layout--with-sider {
+        flex-direction: row;
+      }
+
+      &__header {
+        padding: 0;
+        background: var(--td-bg-color-container);
+        border-bottom: 1px solid var(--td-component-border);
+
+        .logo {
+          padding: 0 24px;
+          font-size: 20px;
+          font-weight: 500;
+        }
+
+        .header-operations {
+          display: flex;
+          align-items: center;
+          padding: 0 24px;
+
+          .header-icon {
+            font-size: 20px;
+            color: var(--td-text-color-secondary);
+            margin-left: 16px;
+            cursor: pointer;
+
+            &:hover {
+              color: var(--td-text-color-primary);
+            }
+          }
+        }
+      }
+
+      &__content {
+        background: var(--td-bg-color-page);
+        padding: 16px;
+        
+        .content-wrapper {
+          margin: 0 auto;
+          padding: 16px;
+          background: var(--td-bg-color-container);
+          border-radius: var(--td-radius-medium);
+        }
+      }
+
+      &__aside {
+        background: var(--td-bg-color-container);
+        border-right: 1px solid var(--td-component-border);
+      }
+    }
+
+    .t-head-menu {
       height: 64px;
-      line-height: 64px;
-    }
-
-    .t-layout__content {
-      padding: 24px;
-      background: #f5f5f5;
-    }
-
-    .t-layout__aside {
-      width: 200px;
-      background: #fff;
+      
+      &__inner {
+        border-bottom: none;
+      }
     }
   }
 } 
