@@ -7,11 +7,13 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "echarts": "^5.4.3",
+    "echarts-for-react": "^3.0.2",
+    "less": "^4.2.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^6.22.0",
-    "echarts": "^5.4.3",
-    "echarts-for-react": "^3.0.2",
+    "tdesign-icons-react": "^0.4.3",
     "tdesign-react": "^1.4.1"
   },
   "devDependencies": {
@@ -21,4 +23,4 @@
     "typescript": "^5.3.3",
     "vite": "^5.1.1"
   }
-} 
+}

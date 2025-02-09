@@ -11,7 +11,7 @@ const port = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors({
-  origin: process.env.ALLOWED_ORIGINS?.split(',') || '*',
+  origin: ['http://localhost:5173'],  // 添加平台的地址
   methods: ['GET', 'POST'],
   credentials: true
 }));
