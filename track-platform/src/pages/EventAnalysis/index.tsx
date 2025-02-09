@@ -31,7 +31,7 @@ export function EventAnalysis() {
         endDate: endDate.toISOString()
       });
       
-      const response = await fetch(`/api/track/events/analysis?${params}`);
+      const response = await fetch(`/api/track/analysis?${params}`);
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }

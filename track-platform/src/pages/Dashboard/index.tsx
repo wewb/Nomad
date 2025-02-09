@@ -28,7 +28,7 @@ export function Dashboard() {
       setStats(data);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
-      MessagePlugin.error('获取数据失败');
+      MessagePlugin.error('获取统计数据失败');
     } finally {
       setLoading(false);
     }

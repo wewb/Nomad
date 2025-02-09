@@ -44,6 +44,7 @@ export function Layout() {
           onChange={(value) => navigate(value as string)}
         >
           <MenuItem value="/dashboard">数据概览</MenuItem>
+          <MenuItem value="/events">事件列表</MenuItem>
           <MenuItem value="/event-analysis">事件分析</MenuItem>
         </HeadMenu>
       </Header>
@@ -58,6 +59,9 @@ export function Layout() {
             <MenuGroup title="数据概览">
               <MenuItem value="/dashboard" icon={<DashboardIcon />}>
                 仪表盘
+              </MenuItem>
+              <MenuItem value="/events" icon={<AppIcon />}>
+                事件列表
               </MenuItem>
               <MenuItem value="/event-analysis" icon={<ChartIcon />}>
                 事件分析

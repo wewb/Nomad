@@ -3,6 +3,7 @@ import { Event } from '../models/Event';
 
 const router = express.Router();
 
+// 记录事件
 router.post('/', async (req, res) => {
   try {
     const eventData = req.body;
@@ -18,13 +19,12 @@ router.post('/', async (req, res) => {
   }
 });
 
+// 获取统计数据
 router.get('/stats', async (req, res) => {
   try {
-    const { projectId, eventName, startDate, endDate } = req.query;
+    const { startDate, endDate } = req.query;
     
     const query: any = {};
-    if (projectId) query.projectId = projectId;
-    if (eventName) query.eventName = eventName;
     if (startDate || endDate) {
       query.createdAt = {};
       if (startDate) query.createdAt.$gte = new Date(startDate as string);
@@ -90,8 +90,33 @@ router.get('/stats', async (req, res) => {
   }
 });
 
+// 获取事件列表
+router.get('/list', async (req, res) => {
+  try {
+    const events = await Event.find()
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    res.json(events);
+  } catch (error) {
+    console.error('Error fetching events:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 删除事件
+router.delete('/:id', async (req, res) => {
+  try {
+    await Event.findByIdAndDelete(req.params.id);
+    res.json({ message: 'Event deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting event:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // 获取事件分析数据
-router.get('/events/analysis', async (req, res) => {
+router.get('/analysis', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
