@@ -23,6 +23,7 @@ router.post('/', async (req, res) => {
 router.get('/stats', async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
+    console.log('Received date range:', { startDate, endDate });
     
     const query: any = {};
     if (startDate || endDate) {
@@ -30,6 +31,8 @@ router.get('/stats', async (req, res) => {
       if (startDate) query.createdAt.$gte = new Date(startDate as string);
       if (endDate) query.createdAt.$lte = new Date(endDate as string);
     }
+
+    console.log('MongoDB query:', query);
 
     // 事件趋势统计
     const trendStats = await Event.aggregate([
@@ -45,6 +48,8 @@ router.get('/stats', async (req, res) => {
       },
       { $sort: { '_id.date': 1 } }
     ]);
+
+    console.log('Trend stats results:', trendStats);
 
     // 事件类型分布
     const eventTypeStats = await Event.aggregate([
@@ -82,7 +87,9 @@ router.get('/stats', async (req, res) => {
       trends: trendStats,
       eventTypes: eventTypeStats,
       browsers: browserStats,
-      os: osStats
+      os: osStats,
+      totalEvents: trendStats.reduce((sum, item) => sum + item.count, 0),
+      uniqueUsers: await Event.distinct('userEnvInfo.uid', query).then(uids => uids.length)
     });
   } catch (error) {
     console.error('Failed to get stats:', error);
@@ -170,6 +177,22 @@ router.get('/analysis', async (req, res) => {
   } catch (error) {
     console.error('Error fetching event analysis:', error);
     res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 获取总体统计数据
+router.get('/stats/total', async (req, res) => {
+  try {
+    const totalEvents = await Event.countDocuments();
+    const uniqueUsers = await Event.distinct('userEnvInfo.uid').then(uids => uids.length);
+
+    res.json({
+      totalEvents,
+      uniqueUsers,
+    });
+  } catch (error) {
+    console.error('Failed to get total stats:', error);
+    res.status(500).json({ error: 'Failed to get total stats' });
   }
 });
 

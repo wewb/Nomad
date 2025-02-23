@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Card, Button, Space, MessagePlugin, Input, Select, Row, Col, Tag } from 'tdesign-react';
+import { Table, Card, Button, Space, MessagePlugin, Input, Select, Row, Col, Tag, DateRangePicker } from 'tdesign-react';
 import type { PrimaryTableCol } from 'tdesign-react';
 import { useNavigate } from 'react-router-dom';
 import { ChartIcon, SearchIcon, BrowseIcon, DeleteIcon } from 'tdesign-icons-react';
@@ -24,6 +24,10 @@ export function Events() {
   const [eventType, setEventType] = useState<string>('');
   const [browser, setBrowser] = useState<string>('');
   const [os, setOs] = useState<string>('');
+  const [dateRange, setDateRange] = useState<[Date, Date]>([
+    new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 默认最近7天
+    new Date()
+  ]);
   const navigate = useNavigate();
 
   // 获取所有可用的浏览器和操作系统选项
@@ -47,22 +51,20 @@ export function Events() {
     {
       title: '事件ID',
       colKey: '_id',
-      width: 240,
+      width: 200,
       fixed: 'left',
       ellipsis: true,
-      cell: (({ row }) => row._id),
     },
     {
       title: '触发时间',
       colKey: 'createdAt',
-      width: 180,
+      width: 160,
       cell: ({ row }) => new Date(row.createdAt).toLocaleString(),
-      sorter: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     {
       title: '事件类型',
       colKey: 'eventName',
-      width: 160,
+      width: 120,
       cell: ({ row }) => {
         const eventTypeMap: Record<string, { label: string; theme: 'primary' | 'success' | 'warning' }> = {
           'click_event': { label: '点击事件', theme: 'primary' },
@@ -76,7 +78,7 @@ export function Events() {
     {
       title: '用户标识',
       colKey: 'userEnvInfo',
-      width: 200,
+      width: 160,
       cell: ({ row }) => (
         <Space>
           <Tag theme="default" variant="light">UID</Tag>
@@ -87,7 +89,7 @@ export function Events() {
     {
       title: '终端信息',
       colKey: 'userEnvInfo',
-      width: 280,
+      width: 200,
       cell: ({ row }) => (
         <Space breakLine>
           <Tag theme="primary" variant="light">
@@ -104,11 +106,13 @@ export function Events() {
       colKey: 'operations',
       fixed: 'right',
       width: 160,
+      align: 'left',
       cell: ({ row }) => (
-        <Space size="small">
+        <Space size={8}>
           <Button
             theme="primary"
             variant="text"
+            size="small"
             icon={<BrowseIcon />}
             onClick={() => navigate(`/events/${row._id}`)}
           >
@@ -117,6 +121,7 @@ export function Events() {
           <Button
             theme="danger"
             variant="text"
+            size="small"
             icon={<DeleteIcon />}
             onClick={() => handleDelete(row._id)}
           >
@@ -145,7 +150,13 @@ export function Events() {
   const fetchEvents = async () => {
     try {
       setLoading(true);
-      const response = await fetch('/api/track/list');
+      const [startDate, endDate] = dateRange;
+      const params = new URLSearchParams({
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+      
+      const response = await fetch(`/api/track/list?${params}`);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       setData(data);
@@ -159,7 +170,7 @@ export function Events() {
 
   useEffect(() => {
     fetchEvents();
-  }, []);
+  }, [dateRange]);
 
   const filteredData = data.filter(item => {
     return (
@@ -176,8 +187,8 @@ export function Events() {
         <Col span={24}>
           <Card>
             <Space direction="vertical" style={{ width: '100%' }} size="large">
-              <Row gutter={[16, 16]}>
-                <Col flex="300px">
+              <Row gutter={[16, 16]} align="middle" style={{ overflow: 'auto', flexWrap: 'nowrap' }}>
+                <Col flex="250px">
                   <Input
                     value={searchKey}
                     onChange={setSearchKey}
@@ -185,7 +196,7 @@ export function Events() {
                     prefixIcon={<SearchIcon />}
                   />
                 </Col>
-                <Col flex="200px">
+                <Col flex="160px">
                   <Select
                     value={eventType}
                     onChange={(value) => setEventType(value as string)}
@@ -198,7 +209,7 @@ export function Events() {
                     ]}
                   />
                 </Col>
-                <Col flex="200px">
+                <Col flex="160px">
                   <Select
                     value={browser}
                     onChange={(value) => setBrowser(value as string)}
@@ -206,12 +217,23 @@ export function Events() {
                     options={getBrowserOptions()}
                   />
                 </Col>
-                <Col flex="200px">
+                <Col flex="160px">
                   <Select
                     value={os}
                     onChange={(value) => setOs(value as string)}
                     placeholder="操作系统"
                     options={getOsOptions()}
+                  />
+                </Col>
+                <Col flex="260px">
+                  <DateRangePicker
+                    value={dateRange}
+                    onChange={(value) => {
+                      if (Array.isArray(value) && value.length === 2) {
+                        setDateRange([new Date(value[0]), new Date(value[1])] as [Date, Date]);
+                      }
+                    }}
+                    style={{ width: '100%' }}
                   />
                 </Col>
               </Row>

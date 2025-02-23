@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Card, MessagePlugin, Row, Col, DateRangePicker } from 'tdesign-react';
 import ReactECharts from 'echarts-for-react';
-import { DashboardIcon, UserIcon, TimeIcon, AppIcon } from 'tdesign-icons-react';
+import { DashboardIcon, UserIcon, AppIcon } from 'tdesign-icons-react';
 
 export function Dashboard() {
   const [stats, setStats] = useState<any>({});
+  const [totalStats, setTotalStats] = useState<any>({});
   const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<[Date, Date]>([
     new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
@@ -15,17 +16,33 @@ export function Dashboard() {
     try {
       setLoading(true);
       const [startDate, endDate] = dateRange;
+      const startOfDay = new Date(startDate);
+      startOfDay.setHours(0, 0, 0, 0);
+      const endOfDay = new Date(endDate);
+      endOfDay.setHours(23, 59, 59, 999);
+      
+      // 获取时间范围内的统计
       const params = new URLSearchParams({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
+        startDate: startOfDay.toISOString(),
+        endDate: endOfDay.toISOString()
       });
       
-      const response = await fetch(`/api/track/stats?${params}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+      const [rangeResponse, totalResponse] = await Promise.all([
+        fetch(`/api/track/stats?${params}`),
+        fetch('/api/track/stats/total')  // 新增的总体统计接口
+      ]);
+
+      if (!rangeResponse.ok || !totalResponse.ok) {
+        throw new Error('Failed to fetch stats');
       }
-      const data = await response.json();
-      setStats(data);
+
+      const [rangeData, totalData] = await Promise.all([
+        rangeResponse.json(),
+        totalResponse.json()
+      ]);
+
+      setStats(rangeData);
+      setTotalStats(totalData);
     } catch (error) {
       console.error('Failed to fetch stats:', error);
       MessagePlugin.error('获取统计数据失败');
@@ -130,49 +147,61 @@ export function Dashboard() {
   return (
     <div className="dashboard">
       <Row gutter={[16, 16]}>
-        {/* 统计卡片 */}
-        <Col span={6}>
+        <Col span={4}>
           <Card bordered={false} className="dashboard-card">
             <div className="dashboard-card__inner">
               <div className="dashboard-card__title">
                 <span>总事件数</span>
                 <DashboardIcon />
               </div>
-              <div className="dashboard-card__count">{stats.totalEvents || 0}</div>
+              <div className="dashboard-card__count">{totalStats.totalEvents || 0}</div>
               <div className="dashboard-card__trend">
-                较昨日 <span className={stats.eventsTrend >= 0 ? 'trend-up' : 'trend-down'}>
-                  {stats.eventsTrend || 0}%
-                </span>
+                所选时间段: {stats.totalEvents || 0}
               </div>
             </div>
           </Card>
         </Col>
-        <Col span={6}>
+        <Col span={4}>
           <Card bordered={false} className="dashboard-card">
             <div className="dashboard-card__inner">
               <div className="dashboard-card__title">
-                <span>独立用户数</span>
+                <span>总用户数</span>
                 <UserIcon />
               </div>
-              <div className="dashboard-card__count">{stats.uniqueUsers || 0}</div>
+              <div className="dashboard-card__count">{totalStats.uniqueUsers || 0}</div>
               <div className="dashboard-card__trend">
-                较昨日 <span className={stats.usersTrend >= 0 ? 'trend-up' : 'trend-down'}>
-                  {stats.usersTrend || 0}%
-                </span>
+                所选时间段: {stats.uniqueUsers || 0}
               </div>
             </div>
           </Card>
         </Col>
-        {/* ... 类似的其他两个统计卡片 ... */}
+        <Col span={4}>
+          <Card bordered={false} className="dashboard-card">
+            <div className="dashboard-card__inner">
+              <div className="dashboard-card__title">
+                <span>活跃应用数</span>
+                <AppIcon />
+              </div>
+              <div className="dashboard-card__count">{stats.activeApps || 0}</div>
+              <div className="dashboard-card__trend">
+                所选时间段内
+              </div>
+            </div>
+          </Card>
+        </Col>
 
         {/* 趋势图 */}
         <Col span={12}>
           <div className="chart-panel">
             <div className="chart-header">
-              <h4>事件趋势</h4>
+              <h4>事件趋势(所选时间段)</h4>
               <DateRangePicker
                 value={dateRange}
-                onChange={(value) => setDateRange(value as [Date, Date])}
+                onChange={(value) => {
+                  if (Array.isArray(value) && value.length === 2) {
+                    setDateRange([new Date(value[0]), new Date(value[1])] as [Date, Date]);
+                  }
+                }}
                 style={{ width: 240 }}
               />
             </div>
