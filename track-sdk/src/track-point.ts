@@ -9,12 +9,18 @@ import {
 
 class TrackPoint {
   private static instance: TrackPoint;
+  private static lastPageViewTime: number = 0;  // 静态变量存储最后一次页面访问时间
   private config!: TrackConfig;
   private commonParams: CommonParams = {};
   private userEnvInfo: UserEnvInfo;
   private requestQueue: TrackData[] = [];
   private isProcessingQueue = false;
   private activeRequests = 0;
+  private pageViewStartTime: number = 0;
+  private currentPageUrl: string = '';
+  private initialized: boolean = false;
+  private lastEventTime: Record<string, number> = {};
+  private readonly DEBOUNCE_TIME = 500;
 
   private constructor() {
     this.userEnvInfo = this.collectUserEnvInfo();
@@ -30,12 +36,21 @@ class TrackPoint {
 
   // 初始化配置
   public register(config: TrackConfig): void {
+    if (this.initialized) {
+      console.warn('SDK already initialized');
+      return;
+    }
+
     this.config = {
       uploadPercent: 1,
       maxRequestLimit: 10,
       batchWaitTime: 1000,
       ...config
     };
+
+    this.setupErrorCapture();
+    this.setupPageTracking();
+    this.initialized = true;
   }
 
   // 添加通用参数
@@ -52,16 +67,33 @@ class TrackPoint {
       return;
     }
 
+    // 检查是否是重复的页面访问事件
+    if (eventName === EventName.PAGE_VIEW_EVENT) {
+      const now = Date.now();
+      const timeSinceLastView = now - TrackPoint.lastPageViewTime;
+      console.log(`Time since last page view: ${timeSinceLastView}ms`);
+      
+      if (timeSinceLastView < this.DEBOUNCE_TIME) {
+        console.log(`Skipping duplicate page view event (${timeSinceLastView}ms < ${this.DEBOUNCE_TIME}ms)`);
+        return;
+      }
+      
+      TrackPoint.lastPageViewTime = now;
+    }
+
     const trackData: TrackData = {
       eventName,
-      eventParams: params,
+      eventParams: {
+        ...params,
+        _timestamp: Date.now()
+      },
       commonParams: this.commonParams,
       userEnvInfo: this.userEnvInfo,
       projectId: this.config.projectId
     };
 
     this.requestQueue.push(trackData);
-    this.processQueue();
+    await this.processQueue();
   }
 
   // 收集用户环境信息
@@ -76,7 +108,11 @@ class TrackPoint {
       screenResolution: `${window.screen.width}x${window.screen.height}`,
       language: navigator.language,
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      userAgent: navigator.userAgent,
+      languageRaw: navigator.languages ? navigator.languages.join(',') : navigator.language,
+      referrer: document.referrer,
+      pageTitle: document.title,
     };
   }
 
@@ -113,20 +149,17 @@ class TrackPoint {
 
     this.isProcessingQueue = true;
 
-    while (this.requestQueue.length > 0 && this.activeRequests < (this.config.maxRequestLimit || 10)) {
-      const data = this.requestQueue.shift();
-      if (data) {
-        this.activeRequests++;
-        try {
+    try {
+      while (this.requestQueue.length > 0) {
+        const data = this.requestQueue[0]; // 查看队列头部但不移除
+        if (data) {
           await this.sendToServer(data);
-        } catch (error) {
-          console.error('Failed to send track data:', error);
+          this.requestQueue.shift(); // 发送成功后移除
         }
-        this.activeRequests--;
       }
+    } finally {
+      this.isProcessingQueue = false;
     }
-
-    this.isProcessingQueue = false;
   }
 
   // 发送数据到服务器
@@ -190,6 +223,93 @@ class TrackPoint {
           console.error('Failed to process pending event:', e);
         }
       }
+    }
+  }
+
+  private setupPageTracking(): void {
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', async () => {
+        await this.initPageTracking();
+      });
+    } else {
+      // 已经加载完成，直接初始化
+      void this.initPageTracking();
+    }
+  }
+
+  private async initPageTracking(): Promise<void> {
+    this.pageViewStartTime = Date.now();
+    this.currentPageUrl = window.location.href;
+
+    // 等待首次页面加载事件完成
+    await this.sendEvent(EventName.PAGE_VIEW_EVENT, {
+      pageUrl: this.currentPageUrl,
+      pageTitle: document.title,
+      referrer: document.referrer,
+      startTime: this.pageViewStartTime,
+      isInitialPageLoad: true  // 添加标记以区分初始加载
+    });
+
+    // 页面离开事件
+    window.addEventListener('beforeunload', () => {
+      const endTime = Date.now();
+      const duration = endTime - this.pageViewStartTime;
+      
+      this.sendEvent(EventName.PAGE_LEAVE_EVENT, {
+        pageUrl: this.currentPageUrl,
+        pageTitle: document.title,
+        startTime: this.pageViewStartTime,
+        endTime: endTime,
+        duration: duration
+      });
+    });
+
+    // 对于单页应用，使用 history API 监听路由变化
+    window.addEventListener('popstate', () => this.handleUrlChange());
+    
+    // 监听 pushState 和 replaceState
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+    
+    history.pushState = function(...args) {
+      originalPushState.apply(this, args);
+      window.dispatchEvent(new Event('locationchange'));
+    };
+    
+    history.replaceState = function(...args) {
+      originalReplaceState.apply(this, args);
+      window.dispatchEvent(new Event('locationchange'));
+    };
+
+    window.addEventListener('locationchange', () => this.handleUrlChange());
+  }
+
+  private handleUrlChange(): void {
+    const newUrl = window.location.href;
+    if (newUrl !== this.currentPageUrl) {
+      // 记录上一个页面的停留时间
+      const endTime = Date.now();
+      const duration = endTime - this.pageViewStartTime;
+      
+      this.sendEvent(EventName.PAGE_LEAVE_EVENT, {
+        pageUrl: this.currentPageUrl,
+        pageTitle: document.title,
+        startTime: this.pageViewStartTime,
+        endTime: endTime,
+        duration: duration
+      });
+
+      // 开始记录新页面
+      this.pageViewStartTime = Date.now();
+      const oldUrl = this.currentPageUrl;
+      this.currentPageUrl = newUrl;
+      
+      this.sendEvent(EventName.PAGE_VIEW_EVENT, {
+        pageUrl: newUrl,
+        pageTitle: document.title,
+        referrer: oldUrl,
+        startTime: this.pageViewStartTime
+      });
     }
   }
 }

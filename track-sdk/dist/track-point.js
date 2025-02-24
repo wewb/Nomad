@@ -5,8 +5,11 @@ class TrackPoint {
         this.requestQueue = [];
         this.isProcessingQueue = false;
         this.activeRequests = 0;
+        this.pageViewStartTime = 0;
+        this.currentPageUrl = '';
         this.userEnvInfo = this.collectUserEnvInfo();
         this.setupErrorCapture();
+        this.setupPageTracking();
     }
     static getInstance() {
         if (!TrackPoint.instance) {
@@ -22,6 +25,8 @@ class TrackPoint {
             batchWaitTime: 1000,
             ...config
         };
+        this.setupErrorCapture();
+        this.setupPageTracking();
     }
     // 添加通用参数
     addCommonParams(params) {
@@ -57,7 +62,11 @@ class TrackPoint {
             screenResolution: `${window.screen.width}x${window.screen.height}`,
             language: navigator.language,
             timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            userAgent: navigator.userAgent,
+            languageRaw: navigator.languages ? navigator.languages.join(',') : navigator.language,
+            referrer: document.referrer,
+            pageTitle: document.title,
         };
     }
     // 错误捕获设置
@@ -164,6 +173,58 @@ class TrackPoint {
                 }
             }
         }
+    }
+    setupPageTracking() {
+        // 页面加载完成时发送 PAGE_VIEW_EVENT
+        window.addEventListener('load', () => {
+            this.pageViewStartTime = Date.now();
+            this.currentPageUrl = window.location.href;
+            this.sendEvent(EventName.PAGE_VIEW_EVENT, {
+                pageUrl: this.currentPageUrl,
+                pageTitle: document.title,
+                referrer: document.referrer,
+                startTime: this.pageViewStartTime
+            });
+        });
+        // 页面离开时发送 PAGE_LEAVE_EVENT
+        window.addEventListener('beforeunload', () => {
+            const endTime = Date.now();
+            const duration = endTime - this.pageViewStartTime;
+            this.sendEvent(EventName.PAGE_LEAVE_EVENT, {
+                pageUrl: this.currentPageUrl,
+                pageTitle: document.title,
+                startTime: this.pageViewStartTime,
+                endTime: endTime,
+                duration: duration
+            });
+        });
+        // 处理单页应用的路由变化
+        let lastUrl = window.location.href;
+        new MutationObserver(() => {
+            const url = window.location.href;
+            if (url !== lastUrl) {
+                // 记录上一个页面的停留时间
+                const endTime = Date.now();
+                const duration = endTime - this.pageViewStartTime;
+                this.sendEvent(EventName.PAGE_LEAVE_EVENT, {
+                    pageUrl: lastUrl,
+                    pageTitle: document.title,
+                    startTime: this.pageViewStartTime,
+                    endTime: endTime,
+                    duration: duration
+                });
+                // 开始记录新页面
+                this.pageViewStartTime = Date.now();
+                this.currentPageUrl = url;
+                lastUrl = url;
+                this.sendEvent(EventName.PAGE_VIEW_EVENT, {
+                    pageUrl: url,
+                    pageTitle: document.title,
+                    referrer: lastUrl,
+                    startTime: this.pageViewStartTime
+                });
+            }
+        }).observe(document, { subtree: true, childList: true });
     }
 }
 // 导出单例实例

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Table, Card, Button, Space, MessagePlugin, Input, Select, Row, Col, Tag, DateRangePicker } from 'tdesign-react';
-import type { PrimaryTableCol } from 'tdesign-react';
+import type { PrimaryTableCol, PrimaryTableRenderParams, PrimaryTableCellParams } from 'tdesign-react';
 import { useNavigate } from 'react-router-dom';
 import { ChartIcon, SearchIcon, BrowseIcon, DeleteIcon } from 'tdesign-icons-react';
 
@@ -12,8 +12,14 @@ interface EventItem {
   eventParams: Record<string, any>;
   userEnvInfo: {
     browserName: string;
+    browserVersion: string;
     osName: string;
     uid: string;
+    pageTitle: string;
+    referrer: string;
+    deviceType: string;
+    language: string;
+    timezone: string;
   };
 }
 
@@ -47,33 +53,70 @@ export function Events() {
     ];
   };
 
+  // 事件名称映射
+  const EVENT_NAME_MAP = {
+    click_event: '点击事件',
+    page_view_event: '页面访问',
+    page_leave_event: '页面离开',
+    error_event: '错误事件',
+    custom_event: '自定义事件'
+  };
+
+  type EventNameType = keyof typeof EVENT_NAME_MAP;
+
+  // 列定义
   const columns: PrimaryTableCol<EventItem>[] = [
     {
       title: '事件ID',
       colKey: '_id',
-      width: 200,
+      width: 160,
       fixed: 'left',
       ellipsis: true,
+      cell: ({ row }) => (
+        <span 
+          style={{ cursor: 'pointer' }} 
+          onClick={() => {
+            navigator.clipboard.writeText(row._id);
+            MessagePlugin.success('ID已复制');
+          }}
+        >
+          {row._id}
+        </span>
+      )
     },
     {
       title: '触发时间',
       colKey: 'createdAt',
-      width: 160,
-      cell: ({ row }) => new Date(row.createdAt).toLocaleString(),
+      width: 130,
+      cell: ({ row }) => new Date(row.createdAt).toLocaleString('zh-CN', {
+        timeZone: 'Asia/Shanghai',
+        hour12: false
+      })
     },
     {
-      title: '事件类型',
+      title: '事件名称',
       colKey: 'eventName',
       width: 120,
-      cell: ({ row }) => {
-        const eventTypeMap: Record<string, { label: string; theme: 'primary' | 'success' | 'warning' }> = {
-          'click_event': { label: '点击事件', theme: 'primary' },
-          'page_view_event': { label: '页面访问', theme: 'success' },
-          'custom_event': { label: '自定义事件', theme: 'warning' }
-        };
-        const eventInfo = eventTypeMap[row.eventName] || { label: row.eventName, theme: 'primary' };
-        return <Tag theme={eventInfo.theme} variant="light">{eventInfo.label}</Tag>;
-      },
+      cell: ({ row }) => EVENT_NAME_MAP[row.eventName as EventNameType] || row.eventName
+    },
+    {
+      title: '页面标题',
+      colKey: 'userEnvInfo.pageTitle',
+      width: 200,
+      ellipsis: true
+    },
+    {
+      title: '语言/地区',
+      colKey: 'locale',
+      width: 200,
+      cell: ({ row }) => `${row.userEnvInfo.language} / ${row.userEnvInfo.timezone}`
+    },
+    {
+      title: '来源页面',
+      colKey: 'userEnvInfo.referrer',
+      width: 200,
+      ellipsis: true,
+      cell: ({ row }) => row.userEnvInfo.referrer || '-'
     },
     {
       title: '用户标识',

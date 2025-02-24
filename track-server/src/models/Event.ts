@@ -12,12 +12,10 @@ const eventSchema = new mongoose.Schema({
     index: true
   },
   eventParams: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed
+    type: mongoose.Schema.Types.Mixed
   },
   commonParams: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed
+    type: mongoose.Schema.Types.Mixed
   },
   userEnvInfo: {
     browserName: String,
@@ -29,13 +27,25 @@ const eventSchema = new mongoose.Schema({
     language: String,
     timezone: String,
     uid: String,
-    timestamp: Number
+    timestamp: Number,
+    userAgent: String,
+    languageRaw: String,
+    ipAddress: String,
+    location: {
+      country: String,
+      region: String,
+      city: String
+    },
+    referrer: String,
+    pageTitle: String
   },
   createdAt: {
     type: Date,
     default: Date.now,
     index: true
   }
+}, {
+  timestamps: true
 });
 
 export const Event = mongoose.model('Event', eventSchema); 

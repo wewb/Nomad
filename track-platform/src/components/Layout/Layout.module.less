@@ -2,64 +2,53 @@
   height: 100vh;
   
   :global {
-    .t-layout {
-      &.t-layout--with-sider {
-        flex-direction: row;
-      }
+    .t-layout__header {
+      padding: 0;
+      height: 64px;
+      display: flex;
+      align-items: center;
+      border-bottom: 1px solid var(--td-component-border);
 
-      &__header {
-        padding: 0;
-        background: var(--td-bg-color-container);
-        border-bottom: 1px solid var(--td-component-border);
+      .header-left {
+        display: flex;
+        align-items: center;
+        width: 232px;
+        height: 100%;
+        padding-left: 24px;
+        border-right: 1px solid var(--td-component-border);
+        transition: width 0.2s;
 
-        .logo {
-          padding: 0 24px;
+        .collapse-btn {
+          cursor: pointer;
+          margin-right: 16px;
           font-size: 20px;
-          font-weight: 500;
-        }
-
-        .header-operations {
-          display: flex;
-          align-items: center;
-          padding: 0 24px;
-
-          .header-icon {
-            font-size: 20px;
-            color: var(--td-text-color-secondary);
-            margin-left: 16px;
-            cursor: pointer;
-
-            &:hover {
-              color: var(--td-text-color-primary);
-            }
+          
+          &:hover {
+            color: var(--td-brand-color);
           }
         }
-      }
 
-      &__content {
-        background: var(--td-bg-color-page);
-        padding: 16px;
-        
-        .content-wrapper {
-          margin: 0 auto;
-          padding: 16px;
-          background: var(--td-bg-color-container);
-          border-radius: var(--td-radius-medium);
+        h1 {
+          margin: 0;
+          font-size: 20px;
+          white-space: nowrap;
         }
       }
 
-      &__aside {
-        background: var(--td-bg-color-container);
-        border-right: 1px solid var(--td-component-border);
+      .t-head-menu {
+        flex: 1;
+        background: none;
       }
     }
 
-    .t-head-menu {
-      height: 64px;
-      
-      &__inner {
-        border-bottom: none;
-      }
+    .t-layout__sider {
+      transition: width 0.2s;
+    }
+
+    .t-layout__content {
+      padding: 20px;
+      background: var(--td-bg-color-page);
+      overflow: auto;
     }
   }
 } 

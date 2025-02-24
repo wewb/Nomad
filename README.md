@@ -37,7 +37,8 @@ F:\nomad_sdk\                <- 项目根目录
 npm install
 
 # Start SDK development
-npm run dev:sdk
+cd track-sdk
+npx http-server . --cors -c-1 -p 8080
 
 # Start server development
 npm run dev:server

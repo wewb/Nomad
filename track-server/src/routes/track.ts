@@ -1,15 +1,53 @@
 import express from 'express';
 import { Event } from '../models/Event';
+import geoip from 'geoip-lite';
 
 const router = express.Router();
+const lastPageViewTime: Record<string, number> = {};  // 存储每个项目的最后页面访问时间
+const DEBOUNCE_TIME = 500;  // 防抖时间 500ms
 
 // 记录事件
 router.post('/', async (req, res) => {
   try {
     const eventData = req.body;
+    
+    // 对页面访问事件进行防抖
+    if (eventData.eventName === 'page_view_event') {
+      const now = Date.now();
+      const projectKey = `${eventData.projectId}_${eventData.userEnvInfo.uid || 'anonymous'}`;
+      const lastTime = lastPageViewTime[projectKey] || 0;
+      
+      if (now - lastTime < DEBOUNCE_TIME) {
+        console.log(`Skipping duplicate page view event for ${projectKey}`);
+        return res.status(200).json({ message: 'Duplicate event skipped' });
+      }
+      
+      lastPageViewTime[projectKey] = now;
+    }
+
+    console.log(`Received a ${eventData.eventName} event at ${new Date().toLocaleString('zh-CN', { 
+      timeZone: 'Asia/Shanghai',
+      hour12: false 
+    })}`);
+    
+    const ipAddress = ((req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '').split(',')[0].trim();
+    
+    if (ipAddress) {
+      const geo = geoip.lookup(ipAddress);
+      if (geo) {
+        eventData.userEnvInfo.ipAddress = ipAddress;
+        eventData.userEnvInfo.location = {
+          country: geo.country,
+          region: geo.region,
+          city: geo.city
+        };
+      }
+    }
+
     if (!eventData.projectId || !eventData.eventName) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+    
     const event = new Event(eventData);
     await event.save();
     res.status(201).json({ message: 'Event recorded successfully' });

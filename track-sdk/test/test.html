@@ -25,8 +25,8 @@
         try {
             register({
                 projectId: 'test-project',
-                apiUrl: 'http://localhost:3000/track',
-                uploadPercent: 1
+                uploadPercent: 1,
+                apiUrl: 'http://localhost:3000/track'
             });
             console.log('SDK registered');
         } catch (error) {
@@ -79,20 +79,6 @@
                 });
             }
         });
-
-        // 页面加载事件
-        window.onload = async () => {
-            try {
-                await sendEvent(EventName.PAGE_VIEW_EVENT, {
-                    page: window.location.pathname,
-                    referrer: document.referrer,
-                    timestamp: Date.now()
-                });
-                updateStatus('Page view event sent successfully');
-            } catch (error) {
-                updateStatus(`Error sending page view event: ${error.message}`);
-            }
-        };
     </script>
 </body>
 </html> 

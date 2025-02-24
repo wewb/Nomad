@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Layout as TLayout, Menu } from 'tdesign-react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -8,7 +8,9 @@ import {
   SettingIcon,
   SearchIcon,
   UserCircleIcon,
-  HelpCircleIcon
+  HelpCircleIcon,
+  MenuFoldIcon,
+  MenuUnfoldIcon
 } from 'tdesign-icons-react';
 import styles from './Layout.module.less';
 
@@ -25,15 +27,25 @@ function ErrorFallback({ error }: { error: Error }) {
 }
 
 export function Layout() {
+  const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   return (
     <TLayout className={styles.layout}>
       <Header>
+        <div className="header-left">
+          <span 
+            className="collapse-btn"
+            onClick={() => setCollapsed(!collapsed)}
+          >
+            {collapsed ? <MenuUnfoldIcon /> : <MenuFoldIcon />}
+          </span>
+          <h1>Track Platform</h1>
+        </div>
         <HeadMenu
           value={location.pathname}
-          logo={<div className="logo">Track Platform</div>}
+          logo={<div className="logo"></div>}
           operations={
             <div className="header-operations">
               <SearchIcon className="header-icon" />
@@ -49,12 +61,13 @@ export function Layout() {
         </HeadMenu>
       </Header>
       <TLayout>
-        <Aside style={{ borderRight: '1px solid var(--td-component-border)' }}>
+        <Aside width={`${collapsed ? 80 : 232}px`} style={{ borderRight: '1px solid var(--td-component-border)' }}>
           <Menu
             theme="light"
             value={location.pathname}
             onChange={(value) => navigate(value as string)}
             style={{ height: '100%' }}
+            collapsed={collapsed}
           >
             <MenuGroup title="数据概览">
               <MenuItem value="/dashboard" icon={<DashboardIcon />}>

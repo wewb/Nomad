@@ -1,6 +1,7 @@
 export declare enum EventName {
     CLICK_EVENT = "click_event",
     PAGE_VIEW_EVENT = "page_view_event",
+    PAGE_LEAVE_EVENT = "page_leave_event",
     ERROR_EVENT = "error_event",
     CUSTOM_EVENT = "custom_event"
 }
@@ -28,6 +29,24 @@ export interface UserEnvInfo {
     timezone: string;
     uid?: string;
     timestamp: number;
+    userAgent: string;
+    languageRaw: string;
+    ipAddress?: string;
+    location?: {
+        country?: string;
+        region?: string;
+        city?: string;
+    };
+    referrer: string;
+    pageTitle: string;
+}
+export interface PageViewParams extends EventParams {
+    pageUrl: string;
+    pageTitle: string;
+    referrer: string;
+    startTime: number;
+    endTime?: number;
+    duration?: number;
 }
 export interface TrackData {
     eventName: EventName;

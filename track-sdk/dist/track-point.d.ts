@@ -7,6 +7,8 @@ declare class TrackPoint {
     private requestQueue;
     private isProcessingQueue;
     private activeRequests;
+    private pageViewStartTime;
+    private currentPageUrl;
     private constructor();
     static getInstance(): TrackPoint;
     register(config: TrackConfig): void;
@@ -19,6 +21,7 @@ declare class TrackPoint {
     private sendToServer;
     private saveToLocalStorage;
     private processPendingEvents;
+    private setupPageTracking;
 }
 export declare const trackPoint: TrackPoint;
 export declare const register: (config: TrackConfig) => void;
