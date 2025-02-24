@@ -1,6 +1,7 @@
 import { EventName, TrackConfig, CommonParams, EventParams } from './types.js';
 declare class TrackPoint {
     private static instance;
+    private static lastPageViewTime;
     private config;
     private commonParams;
     private userEnvInfo;
@@ -9,19 +10,23 @@ declare class TrackPoint {
     private activeRequests;
     private pageViewStartTime;
     private currentPageUrl;
+    private initialized;
+    private lastEventTime;
+    private readonly DEBOUNCE_TIME;
+    private currentSession;
     private constructor();
     static getInstance(): TrackPoint;
     register(config: TrackConfig): void;
-    addCommonParams(params: CommonParams): void;
+    private initSession;
     sendEvent(eventName: EventName, params: EventParams): Promise<void>;
+    private setupActionTracking;
+    private addEvent;
+    addCommonParams(params: CommonParams): void;
     private collectUserEnvInfo;
     private setupErrorCapture;
     private shouldSample;
     private processQueue;
-    private sendToServer;
-    private saveToLocalStorage;
-    private processPendingEvents;
-    private setupPageTracking;
+    private getEventType;
 }
 export declare const trackPoint: TrackPoint;
 export declare const register: (config: TrackConfig) => void;

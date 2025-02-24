@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "ts-node-dev src/index.ts",
     "build": "tsc",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "init-test": "ts-node src/scripts/initTestApp.ts"
   },
   "dependencies": {
     "cors": "^2.8.5",

@@ -5,5 +5,7 @@ export var EventName;
     EventName["PAGE_VIEW_EVENT"] = "page_view_event";
     EventName["PAGE_LEAVE_EVENT"] = "page_leave_event";
     EventName["ERROR_EVENT"] = "error_event";
-    EventName["CUSTOM_EVENT"] = "custom_event";
+    EventName["SEARCH_EVENT"] = "search_event";
+    EventName["SHARE_EVENT"] = "share_event";
+    EventName["CLOSE_EVENT"] = "close_event";
 })(EventName || (EventName = {}));

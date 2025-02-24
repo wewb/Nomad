@@ -10,7 +10,7 @@ import {
   UserCircleIcon,
   HelpCircleIcon,
   MenuFoldIcon,
-  MenuUnfoldIcon
+  MenuUnfoldIcon,
 } from 'tdesign-icons-react';
 import styles from './Layout.module.less';
 
@@ -31,6 +31,15 @@ export function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const menuItems = [
+    {
+      key: '/applications',
+      label: '应用管理',
+      icon: <AppIcon />,
+    },
+    // ... 其他菜单项
+  ];
+
   return (
     <TLayout className={styles.layout}>
       <Header>
@@ -46,13 +55,13 @@ export function Layout() {
         <HeadMenu
           value={location.pathname}
           logo={<div className="logo"></div>}
-          operations={
-            <div className="header-operations">
-              <SearchIcon className="header-icon" />
-              <UserCircleIcon className="header-icon" />
-              <HelpCircleIcon className="header-icon" />
-            </div>
-          }
+          // operations={
+          //   <div className="header-operations">
+          //     <SearchIcon className="header-icon" />
+          //     <UserCircleIcon className="header-icon" />
+          //     <HelpCircleIcon className="header-icon" />
+          //   </div>
+          // }
           onChange={(value) => navigate(value as string)}
         >
           <MenuItem value="/dashboard">数据概览</MenuItem>
@@ -73,7 +82,7 @@ export function Layout() {
               <MenuItem value="/dashboard" icon={<DashboardIcon />}>
                 仪表盘
               </MenuItem>
-              <MenuItem value="/events" icon={<AppIcon />}>
+              <MenuItem value="/events" icon={<ChartIcon />}>
                 事件列表
               </MenuItem>
               <MenuItem value="/event-analysis" icon={<ChartIcon />}>
@@ -81,11 +90,8 @@ export function Layout() {
               </MenuItem>
             </MenuGroup>
             <MenuGroup title="项目管理">
-              <MenuItem value="/apps" icon={<AppIcon />}>
-                应用列表
-              </MenuItem>
-              <MenuItem value="/settings" icon={<SettingIcon />}>
-                系统设置
+              <MenuItem value="/applications" icon={<AppIcon />}>
+                应用管理
               </MenuItem>
             </MenuGroup>
           </Menu>

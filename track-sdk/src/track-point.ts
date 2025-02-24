@@ -2,14 +2,15 @@ import {
   EventName,
   TrackConfig,
   CommonParams,
-  EventParams,
   UserEnvInfo,
-  TrackData
+  TrackData,
+  SessionData,
+  EventParams
 } from './types.js';
 
 class TrackPoint {
   private static instance: TrackPoint;
-  private static lastPageViewTime: number = 0;  // 静态变量存储最后一次页面访问时间
+  private static lastPageViewTime: number = 0;
   private config!: TrackConfig;
   private commonParams: CommonParams = {};
   private userEnvInfo: UserEnvInfo;
@@ -21,6 +22,7 @@ class TrackPoint {
   private initialized: boolean = false;
   private lastEventTime: Record<string, number> = {};
   private readonly DEBOUNCE_TIME = 500;
+  private currentSession: SessionData | null = null;
 
   private constructor() {
     this.userEnvInfo = this.collectUserEnvInfo();
@@ -34,26 +36,142 @@ class TrackPoint {
     return TrackPoint.instance;
   }
 
-  // 初始化配置
   public register(config: TrackConfig): void {
-    if (this.initialized) {
-      console.warn('SDK already initialized');
-      return;
-    }
-
-    this.config = {
-      uploadPercent: 1,
-      maxRequestLimit: 10,
-      batchWaitTime: 1000,
-      ...config
-    };
-
-    this.setupErrorCapture();
-    this.setupPageTracking();
+    if (this.initialized) return;
+    
+    this.config = config;
     this.initialized = true;
+    
+    // 初始化会话
+    this.initSession();
+    this.setupActionTracking();
+    this.setupErrorCapture();
+
+    // 添加初始页面访问事件到会话
+    if (this.currentSession) {
+      const viewEvent = {
+        type: 'view' as const,
+        timestamp: Date.now(),
+        data: {
+          pageUrl: window.location.href,
+          pageTitle: document.title,
+          referrer: document.referrer,
+          startTime: Date.now()
+        }
+      };
+      this.currentSession.events.push(viewEvent);
+    }
   }
 
-  // 添加通用参数
+  private initSession(): void {
+    this.currentSession = {
+      sessionId: crypto.randomUUID(),
+      startTime: Date.now(),
+      pageUrl: window.location.href,
+      pageTitle: document.title,
+      referrer: document.referrer,
+      metrics: {
+        scrollDepth: 0,
+        visibleSections: {}
+      },
+      events: []
+    };
+  }
+
+  public async sendEvent(eventName: EventName, params: EventParams): Promise<void> {
+    if (!this.shouldSample() || !this.currentSession) return;
+
+    // 添加事件到当前会话
+    const event = {
+      type: this.getEventType(eventName),
+      timestamp: Date.now(),
+      data: params
+    };
+    
+    this.currentSession.events.push(event);
+
+    // 只在页面离开时发送完整会话数据
+    if (eventName === EventName.PAGE_LEAVE_EVENT) {
+      const trackData: TrackData = {
+        type: 'session',
+        data: {
+          pageUrl: this.currentSession.pageUrl,
+          pageTitle: this.currentSession.pageTitle,
+          referrer: this.currentSession.referrer,
+          events: this.currentSession.events
+        },
+        userEnvInfo: this.userEnvInfo,
+        projectId: this.config.projectId
+      };
+
+      this.requestQueue.push(trackData);
+      this.processQueue();
+    }
+  }
+
+  private setupActionTracking(): void {
+    // 点击事件
+    document.addEventListener('click', (event) => {
+      const target = event.target as HTMLElement;
+      if (target.hasAttribute('data-track-click')) {
+        const action = target.getAttribute('data-track-click');
+        
+        // 处理搜索事件
+        if (action === 'search-submit') {
+          const searchInput = document.querySelector('#search-input') as HTMLInputElement;
+          this.sendEvent(EventName.SEARCH_EVENT, {
+            keyword: searchInput.value.trim()
+          });
+          return;
+        }
+
+        // 处理分享事件
+        if (action?.startsWith('share-')) {
+          this.sendEvent(EventName.SHARE_EVENT, {
+            platform: action.replace('share-', ''),
+            url: window.location.href
+          });
+          return;
+        }
+
+        // 处理关闭事件
+        if (action === 'close-ad') {
+          this.sendEvent(EventName.CLOSE_EVENT, {
+            element: 'ad-card',
+            timeOnPage: Date.now() - this.currentSession!.startTime
+          });
+          return;
+        }
+
+        // 其他点击事件
+        this.sendEvent(EventName.CLICK_EVENT, {
+          element: action
+        });
+      }
+    });
+
+    // 页面离开事件
+    window.addEventListener('beforeunload', () => {
+      if (!this.currentSession) return;
+      this.sendEvent(EventName.PAGE_LEAVE_EVENT, {
+        duration: Date.now() - this.currentSession.startTime
+      });
+    });
+  }
+
+  private addEvent(type: 'view' | 'click' | 'scroll' | 'leave' | 'custom' | 'error', data: any): void {
+    if (!this.currentSession) return;
+
+    const event = {
+      type,
+      timestamp: Date.now(),
+      data
+    };
+
+    this.currentSession.events.push(event);
+    this.config.onActionRecorded?.(event);
+  }
+
   public addCommonParams(params: CommonParams): void {
     this.commonParams = {
       ...this.commonParams,
@@ -61,46 +179,9 @@ class TrackPoint {
     };
   }
 
-  // 发送事件
-  public async sendEvent(eventName: EventName, params: EventParams): Promise<void> {
-    if (!this.shouldSample()) {
-      return;
-    }
-
-    // 检查是否是重复的页面访问事件
-    if (eventName === EventName.PAGE_VIEW_EVENT) {
-      const now = Date.now();
-      const timeSinceLastView = now - TrackPoint.lastPageViewTime;
-      console.log(`Time since last page view: ${timeSinceLastView}ms`);
-      
-      if (timeSinceLastView < this.DEBOUNCE_TIME) {
-        console.log(`Skipping duplicate page view event (${timeSinceLastView}ms < ${this.DEBOUNCE_TIME}ms)`);
-        return;
-      }
-      
-      TrackPoint.lastPageViewTime = now;
-    }
-
-    const trackData: TrackData = {
-      eventName,
-      eventParams: {
-        ...params,
-        _timestamp: Date.now()
-      },
-      commonParams: this.commonParams,
-      userEnvInfo: this.userEnvInfo,
-      projectId: this.config.projectId
-    };
-
-    this.requestQueue.push(trackData);
-    await this.processQueue();
-  }
-
-  // 收集用户环境信息
   private collectUserEnvInfo(): UserEnvInfo {
-    const userAgent = navigator.userAgent;
     return {
-      browserName: 'Chrome', // 示例值，需要实际解析
+      browserName: 'Chrome', // 简化示例，实际应该检测
       browserVersion: '1.0',
       osName: 'Windows',
       osVersion: '10',
@@ -110,15 +191,15 @@ class TrackPoint {
       timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
       timestamp: Date.now(),
       userAgent: navigator.userAgent,
-      languageRaw: navigator.languages ? navigator.languages.join(',') : navigator.language,
+      languageRaw: navigator.languages.join(','),
       referrer: document.referrer,
-      pageTitle: document.title,
+      pageTitle: document.title
     };
   }
 
-  // 错误捕获设置
   private setupErrorCapture(): void {
     window.addEventListener('error', (event) => {
+      // 使用 sendEvent 而不是直接 addEvent
       this.sendEvent(EventName.ERROR_EVENT, {
         message: event.message,
         filename: event.filename,
@@ -127,197 +208,58 @@ class TrackPoint {
         error: event.error?.stack
       });
     });
-
-    window.addEventListener('unhandledrejection', (event) => {
-      this.sendEvent(EventName.ERROR_EVENT, {
-        message: 'Unhandled Promise Rejection',
-        reason: event.reason
-      });
-    });
   }
 
-  // 采样判断
   private shouldSample(): boolean {
     return Math.random() < (this.config.uploadPercent || 1);
   }
 
-  // 处理上报队列
   private async processQueue(): Promise<void> {
-    if (this.isProcessingQueue) {
-      return;
-    }
-
+    if (this.isProcessingQueue || !this.requestQueue.length) return;
+    
     this.isProcessingQueue = true;
-
+    
     try {
-      while (this.requestQueue.length > 0) {
-        const data = this.requestQueue[0]; // 查看队列头部但不移除
-        if (data) {
-          await this.sendToServer(data);
-          this.requestQueue.shift(); // 发送成功后移除
-        }
-      }
-    } finally {
-      this.isProcessingQueue = false;
-    }
-  }
-
-  // 发送数据到服务器
-  private async sendToServer(data: TrackData): Promise<void> {
-    console.log('Sending data to server:', data);
-    const maxRetries = 3;
-    let retryCount = 0;
-    
-    const apiUrl = this.config?.apiUrl || 'https://api.track-point.example.com/track';
-    console.log('Using API URL:', apiUrl);
-    
-    if (!apiUrl) {
-      throw new Error('API URL is not configured');
-    }
-
-    while (retryCount < maxRetries) {
-      try {
-        const response = await fetch(apiUrl, {
+      const data = this.requestQueue.shift();
+      if (data) {
+        console.log('Sending data to server:', JSON.stringify(data, null, 2));
+        const response = await fetch(this.config.apiUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(data)
         });
-        console.log('Server response:', response);
 
         if (!response.ok) {
+          const errorText = await response.text();
+          console.error('Server response:', response.status, errorText);
           throw new Error(`HTTP error! status: ${response.status}`);
         }
-        return;
-      } catch (error) {
-        console.error('Request failed:', error);
-        retryCount++;
-        if (retryCount === maxRetries) {
-          this.saveToLocalStorage(data);
-          throw error;
-        }
-        await new Promise(resolve => setTimeout(resolve, Math.pow(2, retryCount) * 1000));
+      }
+    } catch (error) {
+      console.error('Failed to process queue:', error);
+    } finally {
+      this.isProcessingQueue = false;
+      if (this.requestQueue.length) {
+        this.processQueue();
       }
     }
   }
 
-  private saveToLocalStorage(data: TrackData): void {
-    const key = `track_${Date.now()}`;
-    try {
-      localStorage.setItem(key, JSON.stringify(data));
-    } catch (e) {
-      console.error('Failed to save to localStorage:', e);
-    }
-  }
-
-  private processPendingEvents(): void {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key?.startsWith('track_')) {
-        try {
-          const data = JSON.parse(localStorage.getItem(key) || '');
-          this.requestQueue.push(data);
-          localStorage.removeItem(key);
-        } catch (e) {
-          console.error('Failed to process pending event:', e);
-        }
-      }
-    }
-  }
-
-  private setupPageTracking(): void {
-    if (document.readyState === 'loading') {
-      document.addEventListener('DOMContentLoaded', async () => {
-        await this.initPageTracking();
-      });
-    } else {
-      // 已经加载完成，直接初始化
-      void this.initPageTracking();
-    }
-  }
-
-  private async initPageTracking(): Promise<void> {
-    this.pageViewStartTime = Date.now();
-    this.currentPageUrl = window.location.href;
-
-    // 等待首次页面加载事件完成
-    await this.sendEvent(EventName.PAGE_VIEW_EVENT, {
-      pageUrl: this.currentPageUrl,
-      pageTitle: document.title,
-      referrer: document.referrer,
-      startTime: this.pageViewStartTime,
-      isInitialPageLoad: true  // 添加标记以区分初始加载
-    });
-
-    // 页面离开事件
-    window.addEventListener('beforeunload', () => {
-      const endTime = Date.now();
-      const duration = endTime - this.pageViewStartTime;
-      
-      this.sendEvent(EventName.PAGE_LEAVE_EVENT, {
-        pageUrl: this.currentPageUrl,
-        pageTitle: document.title,
-        startTime: this.pageViewStartTime,
-        endTime: endTime,
-        duration: duration
-      });
-    });
-
-    // 对于单页应用，使用 history API 监听路由变化
-    window.addEventListener('popstate', () => this.handleUrlChange());
-    
-    // 监听 pushState 和 replaceState
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
-    
-    history.pushState = function(...args) {
-      originalPushState.apply(this, args);
-      window.dispatchEvent(new Event('locationchange'));
-    };
-    
-    history.replaceState = function(...args) {
-      originalReplaceState.apply(this, args);
-      window.dispatchEvent(new Event('locationchange'));
-    };
-
-    window.addEventListener('locationchange', () => this.handleUrlChange());
-  }
-
-  private handleUrlChange(): void {
-    const newUrl = window.location.href;
-    if (newUrl !== this.currentPageUrl) {
-      // 记录上一个页面的停留时间
-      const endTime = Date.now();
-      const duration = endTime - this.pageViewStartTime;
-      
-      this.sendEvent(EventName.PAGE_LEAVE_EVENT, {
-        pageUrl: this.currentPageUrl,
-        pageTitle: document.title,
-        startTime: this.pageViewStartTime,
-        endTime: endTime,
-        duration: duration
-      });
-
-      // 开始记录新页面
-      this.pageViewStartTime = Date.now();
-      const oldUrl = this.currentPageUrl;
-      this.currentPageUrl = newUrl;
-      
-      this.sendEvent(EventName.PAGE_VIEW_EVENT, {
-        pageUrl: newUrl,
-        pageTitle: document.title,
-        referrer: oldUrl,
-        startTime: this.pageViewStartTime
-      });
+  private getEventType(eventName: EventName): 'view' | 'click' | 'scroll' | 'leave' | 'custom' | 'visibility' | 'error' {
+    switch (eventName) {
+      case EventName.PAGE_VIEW_EVENT: return 'view';
+      case EventName.CLICK_EVENT: return 'click';
+      case EventName.PAGE_LEAVE_EVENT: return 'leave';
+      case EventName.ERROR_EVENT: return 'error';
+      case EventName.SEARCH_EVENT: return 'custom';
+      case EventName.SHARE_EVENT: return 'custom';
+      case EventName.CLOSE_EVENT: return 'custom';
+      default: return 'custom';
     }
   }
 }
 
-// 导出单例实例
 export const trackPoint = TrackPoint.getInstance();
-
-// 导出便捷方法
 export const register = (config: TrackConfig) => trackPoint.register(config);
 export const sendEvent = (eventName: EventName, params: EventParams) => trackPoint.sendEvent(eventName, params);
 export const addCommonParams = (params: CommonParams) => trackPoint.addCommonParams(params); 

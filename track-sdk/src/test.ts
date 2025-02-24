@@ -1,24 +1,19 @@
-import { register, sendEvent, addCommonParams, EventName } from './index';
+import { register, sendEvent, EventName } from './index';
 
 // 初始化 SDK
 register({
   projectId: 'test-project',
-  uploadPercent: 1,
   apiUrl: 'http://localhost:3000/track'
-});
-
-// 添加通用参数
-addCommonParams({
-  platform: 'web',
-  version: '1.0.0'
 });
 
 // 测试发送事件
 async function test() {
   try {
-    await sendEvent(EventName.CLICK_EVENT, {
-      buttonId: 'test-button',
-      pageUrl: 'http://localhost:3000'
+    await sendEvent(EventName.PAGE_VIEW_EVENT, {
+      pageUrl: window.location.href,
+      pageTitle: document.title,
+      referrer: document.referrer,
+      startTime: Date.now()
     });
     console.log('Event sent successfully');
   } catch (error) {

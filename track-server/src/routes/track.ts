@@ -1,6 +1,8 @@
 import express from 'express';
 import { Event } from '../models/Event';
+import { Session } from '../models/Session';
 import geoip from 'geoip-lite';
+import { Project } from '../models/Project';
 
 const router = express.Router();
 const lastPageViewTime: Record<string, number> = {};  // 存储每个项目的最后页面访问时间
@@ -9,34 +11,48 @@ const DEBOUNCE_TIME = 500;  // 防抖时间 500ms
 // 记录事件
 router.post('/', async (req, res) => {
   try {
-    const eventData = req.body;
+    const { type, data, userEnvInfo, projectId } = req.body;
     
-    // 对页面访问事件进行防抖
-    if (eventData.eventName === 'page_view_event') {
-      const now = Date.now();
-      const projectKey = `${eventData.projectId}_${eventData.userEnvInfo.uid || 'anonymous'}`;
-      const lastTime = lastPageViewTime[projectKey] || 0;
-      
-      if (now - lastTime < DEBOUNCE_TIME) {
-        console.log(`Skipping duplicate page view event for ${projectKey}`);
-        return res.status(200).json({ message: 'Duplicate event skipped' });
-      }
-      
-      lastPageViewTime[projectKey] = now;
+    // 验证项目是否存在
+    const project = await Project.findOne({ projectId });
+    if (!project) {
+      console.log('Project not found:', projectId);
+      return res.status(404).json({ error: 'Project not found' });
     }
 
-    console.log(`Received a ${eventData.eventName} event at ${new Date().toLocaleString('zh-CN', { 
-      timeZone: 'Asia/Shanghai',
-      hour12: false 
-    })}`);
-    
+    // 添加调试日志
+    console.log('Received request body:', JSON.stringify(req.body, null, 2));
+
+    // 验证必要的数据字段
+    if (!type || !data || !userEnvInfo || !projectId) {
+      console.log('Missing required fields:', { type, data, userEnvInfo, projectId });
+      return res.status(400).json({ error: 'Missing required fields' });
+    }
+
+    // 验证数据类型
+    if (type !== 'session') {  // 现在我们只接受 session 类型
+      console.log('Invalid event type:', type);
+      return res.status(400).json({ error: 'Invalid event type' });
+    }
+
+    // 验证会话数据的完整性
+    if (!data.pageUrl || !data.events || !Array.isArray(data.events)) {
+      console.log('Invalid session data:', data);
+      return res.status(400).json({ error: 'Invalid session data' });
+    }
+
+    // 简化日志输出
+    console.log(`Received session data for page: ${data.pageUrl}`);
+    console.log(`Total events: ${data.events.length}`);
+    console.log(`Events:`, data.events);
+
+    // 添加 IP 和地理位置信息
     const ipAddress = ((req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '').split(',')[0].trim();
-    
     if (ipAddress) {
       const geo = geoip.lookup(ipAddress);
       if (geo) {
-        eventData.userEnvInfo.ipAddress = ipAddress;
-        eventData.userEnvInfo.location = {
+        userEnvInfo.ipAddress = ipAddress;
+        userEnvInfo.location = {
           country: geo.country,
           region: geo.region,
           city: geo.city
@@ -44,16 +60,21 @@ router.post('/', async (req, res) => {
       }
     }
 
-    if (!eventData.projectId || !eventData.eventName) {
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
-    
-    const event = new Event(eventData);
+    // 保存到数据库
+    const event = new Event({
+      type,
+      data,
+      userEnvInfo,
+      projectId
+    });
+
     await event.save();
-    res.status(201).json({ message: 'Event recorded successfully' });
+    console.log(`Session saved successfully with ID: ${event._id}`);
+    
+    res.status(201).json({ message: 'Session recorded successfully' });
   } catch (error) {
-    console.error('Failed to save event:', error);
-    res.status(500).json({ error: 'Failed to save event' });
+    console.error('Failed to save session:', error);
+    res.status(500).json({ error: 'Failed to save session' });
   }
 });
 

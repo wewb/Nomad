@@ -3,7 +3,9 @@ export declare enum EventName {
     PAGE_VIEW_EVENT = "page_view_event",
     PAGE_LEAVE_EVENT = "page_leave_event",
     ERROR_EVENT = "error_event",
-    CUSTOM_EVENT = "custom_event"
+    SEARCH_EVENT = "search_event",
+    SHARE_EVENT = "share_event",
+    CLOSE_EVENT = "close_event"
 }
 export interface TrackConfig {
     projectId: string;
@@ -11,6 +13,12 @@ export interface TrackConfig {
     uploadPercent?: number;
     maxRequestLimit?: number;
     batchWaitTime?: number;
+    onActionRecorded?: (action: {
+        type: 'view' | 'click' | 'scroll' | 'leave' | 'custom' | 'visibility' | 'error';
+        timestamp: number;
+        data: any;
+    }) => void;
+    onSessionEnd?: (session: SessionData) => void;
 }
 export interface CommonParams {
     [key: string]: any;
@@ -49,9 +57,26 @@ export interface PageViewParams extends EventParams {
     duration?: number;
 }
 export interface TrackData {
-    eventName: EventName;
-    eventParams: EventParams;
-    commonParams: CommonParams;
+    type: string;
+    data: any;
     userEnvInfo: UserEnvInfo;
     projectId: string;
+}
+export interface SessionData {
+    sessionId: string;
+    startTime: number;
+    endTime?: number;
+    pageUrl: string;
+    pageTitle: string;
+    referrer: string;
+    metrics: {
+        duration?: number;
+        scrollDepth: number;
+        visibleSections: Record<string, number>;
+    };
+    events: Array<{
+        type: 'view' | 'click' | 'scroll' | 'leave' | 'custom' | 'visibility' | 'error';
+        timestamp: number;
+        data: any;
+    }>;
 }

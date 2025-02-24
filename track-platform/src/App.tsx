@@ -1,20 +1,26 @@
-import { Routes, Route, Navigate } from 'react-router-dom';
+import React from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { Login } from './pages/Login';
-import { Dashboard } from './pages/Dashboard';
-import { EventAnalysis } from './pages/EventAnalysis';
-import { PrivateRoute } from './components/PrivateRoute';
+import { ErrorFallback } from './components/ErrorBoundary';
+import { routes } from './routes';
 
 function App() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-        <Route index element={<Navigate to="/dashboard" replace />} />
-        <Route path="dashboard" element={<Dashboard />} />
-        <Route path="event-analysis" element={<EventAnalysis />} />
-      </Route>
-    </Routes>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Layout />} errorElement={<ErrorFallback error={new Error('页面加载失败')} />}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
+          {routes.map(route => (
+            <Route 
+              key={route.path} 
+              path={route.path} 
+              element={route.element}
+              errorElement={<ErrorFallback error={new Error('页面加载失败')} />}
+            />
+          ))}
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 

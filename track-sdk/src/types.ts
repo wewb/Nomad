@@ -4,16 +4,24 @@ export enum EventName {
   PAGE_VIEW_EVENT = 'page_view_event',
   PAGE_LEAVE_EVENT = 'page_leave_event',
   ERROR_EVENT = 'error_event',
-  CUSTOM_EVENT = 'custom_event'
+  SEARCH_EVENT = 'search_event',
+  SHARE_EVENT = 'share_event',
+  CLOSE_EVENT = 'close_event'
 }
 
 // SDK 初始化配置接口
 export interface TrackConfig {
   projectId: string;
-  apiUrl: string;  // 改为必需字段
-  uploadPercent?: number; // 采样率 0-1
-  maxRequestLimit?: number; // 最大并发请求数
-  batchWaitTime?: number; // 批量上报等待时间(ms)
+  apiUrl: string;
+  uploadPercent?: number;
+  maxRequestLimit?: number;
+  batchWaitTime?: number;
+  onActionRecorded?: (action: {
+    type: 'view' | 'click' | 'scroll' | 'leave' | 'custom' | 'visibility' | 'error';
+    timestamp: number;
+    data: any;
+  }) => void;
+  onSessionEnd?: (session: SessionData) => void;
 }
 
 // 通用参数接口
@@ -62,9 +70,28 @@ export interface PageViewParams extends EventParams {
 
 // 上报数据接口
 export interface TrackData {
-  eventName: EventName;
-  eventParams: EventParams;
-  commonParams: CommonParams;
+  type: string;
+  data: any;
   userEnvInfo: UserEnvInfo;
   projectId: string;
+}
+
+// 会话数据接口
+export interface SessionData {
+  sessionId: string;
+  startTime: number;
+  endTime?: number;
+  pageUrl: string;
+  pageTitle: string;
+  referrer: string;
+  metrics: {
+    duration?: number;
+    scrollDepth: number;
+    visibleSections: Record<string, number>;
+  };
+  events: Array<{
+    type: 'view' | 'click' | 'scroll' | 'leave' | 'custom' | 'visibility' | 'error';
+    timestamp: number;
+    data: any;
+  }>;
 } 

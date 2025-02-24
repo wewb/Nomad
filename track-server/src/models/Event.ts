@@ -6,38 +6,26 @@ const eventSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  eventName: {
+  type: {
     type: String,
-    required: true,
-    index: true
+    required: true
   },
-  eventParams: {
-    type: mongoose.Schema.Types.Mixed
-  },
-  commonParams: {
-    type: mongoose.Schema.Types.Mixed
+  data: {
+    pageUrl: String,
+    pageTitle: String,
+    referrer: String,
+    events: [{
+      type: {
+        type: String,
+        enum: ['view', 'click', 'scroll', 'leave', 'custom', 'visibility', 'error']
+      },
+      timestamp: Number,
+      data: mongoose.Schema.Types.Mixed
+    }]
   },
   userEnvInfo: {
-    browserName: String,
-    browserVersion: String,
-    osName: String,
-    osVersion: String,
-    deviceType: String,
-    screenResolution: String,
-    language: String,
-    timezone: String,
-    uid: String,
-    timestamp: Number,
-    userAgent: String,
-    languageRaw: String,
-    ipAddress: String,
-    location: {
-      country: String,
-      region: String,
-      city: String
-    },
-    referrer: String,
-    pageTitle: String
+    type: mongoose.Schema.Types.Mixed,
+    required: true
   },
   createdAt: {
     type: Date,

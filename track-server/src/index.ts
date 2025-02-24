@@ -3,6 +3,7 @@ import cors from 'cors';
 import { trackRouter } from './routes/track';
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import { appRouter } from './routes/app';
 
 dotenv.config();
 
@@ -15,7 +16,8 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-app.use('/track', trackRouter);
+app.use('/api/track', trackRouter);
+app.use('/api/app', appRouter);
 
 // Connect to MongoDB
 mongoose.connect(MONGODB_URI)

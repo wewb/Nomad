@@ -3,6 +3,7 @@ import { Table, Card, Button, Space, MessagePlugin, Input, Select, Row, Col, Tag
 import type { PrimaryTableCol, PrimaryTableRenderParams, PrimaryTableCellParams } from 'tdesign-react';
 import { useNavigate } from 'react-router-dom';
 import { ChartIcon, SearchIcon, BrowseIcon, DeleteIcon } from 'tdesign-icons-react';
+import axios from 'axios';
 
 interface EventItem {
   _id: string;
@@ -199,10 +200,8 @@ export function Events() {
         endDate: endDate.toISOString()
       });
       
-      const response = await fetch(`/api/track/list?${params}`);
-      if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-      const data = await response.json();
-      setData(data);
+      const response = await axios.get<EventItem[]>('/api/track/list', { params });
+      setData(response.data);
     } catch (error) {
       console.error('Failed to fetch events:', error);
       MessagePlugin.error('获取事件列表失败');
