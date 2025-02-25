@@ -3,7 +3,7 @@ import { register, sendEvent, EventName } from './index';
 // 初始化 SDK
 register({
   projectId: 'test-project',
-  apiUrl: 'http://localhost:3000/track'
+  apiUrl: 'http://localhost:3000/api/track'
 });
 
 // 测试发送事件

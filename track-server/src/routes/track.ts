@@ -1,4 +1,4 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import { Event } from '../models/Event';
 import { Session } from '../models/Session';
 import geoip from 'geoip-lite';
@@ -8,151 +8,165 @@ const router = express.Router();
 const lastPageViewTime: Record<string, number> = {};  // 存储每个项目的最后页面访问时间
 const DEBOUNCE_TIME = 500;  // 防抖时间 500ms
 
-// 记录事件
-router.post('/', async (req, res) => {
+// 验证端点权限的中间件
+async function validateEndpoint(
+  req: Request,
+  res: Response,
+  next: NextFunction
+) {
   try {
-    const { type, data, userEnvInfo, projectId } = req.body;
+    const { projectId } = req.body;
+    const referer = req.headers.referer || req.headers.origin;
     
-    // 验证项目是否存在
+    if (!referer) {
+      console.log('Missing referer/origin header');
+      return res.status(403).json({ error: 'Missing origin information' });
+    }
+
+    // 查找项目及其授权端点
     const project = await Project.findOne({ projectId });
     if (!project) {
       console.log('Project not found:', projectId);
       return res.status(404).json({ error: 'Project not found' });
     }
 
-    // 添加调试日志
-    console.log('Received request body:', JSON.stringify(req.body, null, 2));
+    console.log('Validating endpoint:', {
+      referer,
+      projectId,
+      endpoints: project.endpoints.map(e => e.url)
+    });
 
-    // 验证必要的数据字段
-    if (!type || !data || !userEnvInfo || !projectId) {
-      console.log('Missing required fields:', { type, data, userEnvInfo, projectId });
-      return res.status(400).json({ error: 'Missing required fields' });
-    }
+    // 验证请求来源是否为授权端点
+    const refererUrl = new URL(referer);
+    const isAuthorizedEndpoint = project.endpoints.some(endpoint => {
+      try {
+        const endpointUrl = new URL(endpoint.url);
+        // 验证 origin 和路径前缀
+        const originMatch = refererUrl.origin === endpointUrl.origin;
+        const basePath = endpointUrl.pathname.split('/').slice(0, -1).join('/'); // 获取目录路径
+        const pathMatch = refererUrl.pathname === '/' || // 允许根路径
+                         refererUrl.pathname.startsWith(basePath); // 允许目录下的所有文件
+        
+        console.log('URL matching:', {
+          refererPath: refererUrl.pathname,
+          endpointPath: endpointUrl.pathname,
+          basePath,
+          originMatch,
+          pathMatch
+        });
 
-    // 验证数据类型
-    if (type !== 'session') {  // 现在我们只接受 session 类型
-      console.log('Invalid event type:', type);
-      return res.status(400).json({ error: 'Invalid event type' });
-    }
-
-    // 验证会话数据的完整性
-    if (!data.pageUrl || !data.events || !Array.isArray(data.events)) {
-      console.log('Invalid session data:', data);
-      return res.status(400).json({ error: 'Invalid session data' });
-    }
-
-    // 简化日志输出
-    console.log(`Received session data for page: ${data.pageUrl}`);
-    console.log(`Total events: ${data.events.length}`);
-    console.log(`Events:`, data.events);
-
-    // 添加 IP 和地理位置信息
-    const ipAddress = ((req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || '').split(',')[0].trim();
-    if (ipAddress) {
-      const geo = geoip.lookup(ipAddress);
-      if (geo) {
-        userEnvInfo.ipAddress = ipAddress;
-        userEnvInfo.location = {
-          country: geo.country,
-          region: geo.region,
-          city: geo.city
-        };
+        return originMatch && pathMatch;
+      } catch (e) {
+        console.error('Invalid endpoint URL:', endpoint.url);
+        return false;
       }
+    });
+
+    if (!isAuthorizedEndpoint) {
+      console.log('Unauthorized endpoint:', referer, 'for project:', projectId);
+      return res.status(403).json({ 
+        error: 'Unauthorized endpoint',
+        message: `${referer} is not an authorized endpoint for project ${projectId}`
+      });
     }
 
-    // 保存到数据库
+    // 将项目信息添加到请求对象
+    req.project = project;
+    next();
+  } catch (error) {
+    console.error('Endpoint validation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+// 记录事件
+router.post('/', validateEndpoint, async (req: Request, res: Response) => {
+  try {
+    console.log('Track event:', {
+      type: req.body.type,
+      projectId: req.project?.projectId,
+      referer: req.headers.referer,
+      events: req.body.data?.events?.length || 0
+    });
+
+    const { type, data, userEnvInfo } = req.body;
+    const projectId = req.project?.projectId;
+
     const event = new Event({
+      projectId,
       type,
       data,
-      userEnvInfo,
-      projectId
+      userEnvInfo
     });
 
     await event.save();
-    console.log(`Session saved successfully with ID: ${event._id}`);
-    
-    res.status(201).json({ message: 'Session recorded successfully' });
+    console.log('Event saved:', event._id);
+    res.status(201).json(event);
   } catch (error) {
-    console.error('Failed to save session:', error);
-    res.status(500).json({ error: 'Failed to save session' });
+    console.error('Failed to save event:', error);
+    res.status(500).json({ error: 'Failed to save event' });
   }
 });
 
 // 获取统计数据
-router.get('/stats', async (req, res) => {
+router.get('/stats', async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
-    console.log('Received date range:', { startDate, endDate });
-    
-    const query: any = {};
-    if (startDate || endDate) {
-      query.createdAt = {};
-      if (startDate) query.createdAt.$gte = new Date(startDate as string);
-      if (endDate) query.createdAt.$lte = new Date(endDate as string);
-    }
+    console.log('Stats request:', { startDate, endDate });
+
+    // 构造查询条件
+    const query = {
+      createdAt: {
+        $gte: new Date(startDate as string),
+        $lte: new Date(endDate as string)
+      }
+    };
 
     console.log('MongoDB query:', query);
 
-    // 事件趋势统计
-    const trendStats = await Event.aggregate([
-      { $match: query },
-      {
-        $group: {
-          _id: {
-            date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
-            eventName: '$eventName'
-          },
-          count: { $sum: 1 }
+    // 获取时间范围内的所有事件
+    const events = await Event.find(query).sort({ createdAt: 1 });
+
+    // 统计数据
+    const stats = {
+      events: events.map(event => ({
+        ...event.toObject(),
+        _id: event._id.toString()
+      })),
+      // 基础统计
+      totalEvents: events.length,
+      uniqueUsers: new Set(events.map(e => e.userEnvInfo?.uid)).size,
+      // 事件类型统计
+      eventTypes: events.reduce((acc: any, event) => {
+        if (event.data?.events) {
+          event.data.events.forEach((e: any) => {
+            acc[e.type] = (acc[e.type] || 0) + 1;
+          });
         }
-      },
-      { $sort: { '_id.date': 1 } }
-    ]);
-
-    console.log('Trend stats results:', trendStats);
-
-    // 事件类型分布
-    const eventTypeStats = await Event.aggregate([
-      { $match: query },
-      {
-        $group: {
-          _id: '$eventName',
-          count: { $sum: 1 }
+        return acc;
+      }, {}),
+      // 浏览器统计
+      browsers: events.reduce((acc: any, event) => {
+        const browser = event.userEnvInfo?.browserName;
+        if (browser) {
+          acc[browser] = (acc[browser] || 0) + 1;
         }
-      }
-    ]);
-
-    // 用户环境统计
-    const browserStats = await Event.aggregate([
-      { $match: query },
-      {
-        $group: {
-          _id: '$userEnvInfo.browserName',
-          count: { $sum: 1 }
+        return acc;
+      }, {}),
+      // 操作系统统计
+      os: events.reduce((acc: any, event) => {
+        const os = event.userEnvInfo?.osName;
+        if (os) {
+          acc[os] = (acc[os] || 0) + 1;
         }
-      }
-    ]);
+        return acc;
+      }, {})
+    };
 
-    const osStats = await Event.aggregate([
-      { $match: query },
-      {
-        $group: {
-          _id: '$userEnvInfo.osName',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    res.json({
-      trends: trendStats,
-      eventTypes: eventTypeStats,
-      browsers: browserStats,
-      os: osStats,
-      totalEvents: trendStats.reduce((sum, item) => sum + item.count, 0),
-      uniqueUsers: await Event.distinct('userEnvInfo.uid', query).then(uids => uids.length)
-    });
+    res.json(stats);
   } catch (error) {
     console.error('Failed to get stats:', error);
-    res.status(500).json({ error: 'Failed to get stats' });
+    res.status(500).json({ error: 'Failed to get statistics' });
   }
 });
 

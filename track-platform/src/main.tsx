@@ -1,8 +1,8 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { RouterProvider } from 'react-router-dom'
-import router from './router'
 import { ConfigProvider } from 'tdesign-react'
+import router from './router'
 import 'tdesign-react/es/style/index.css'
 import './styles/global.less'
 

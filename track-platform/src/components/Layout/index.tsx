@@ -26,19 +26,28 @@ function ErrorFallback({ error }: { error: Error }) {
   );
 }
 
+const menuItems = [
+  {
+    path: '/dashboard',
+    title: '仪表盘',
+    icon: <DashboardIcon />,
+  },
+  {
+    path: '/applications',
+    title: '应用管理',
+    icon: <AppIcon />,
+  },
+  {
+    path: '/events',
+    title: '事件列表',
+    icon: <ChartIcon />,
+  },
+];
+
 export function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-
-  const menuItems = [
-    {
-      key: '/applications',
-      label: '应用管理',
-      icon: <AppIcon />,
-    },
-    // ... 其他菜单项
-  ];
 
   return (
     <TLayout className={styles.layout}>

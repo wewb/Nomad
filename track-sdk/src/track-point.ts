@@ -218,22 +218,29 @@ class TrackPoint {
     if (this.isProcessingQueue || !this.requestQueue.length) return;
     
     this.isProcessingQueue = true;
-    
     try {
       const data = this.requestQueue.shift();
       if (data) {
-        console.log('Sending data to server:', JSON.stringify(data, null, 2));
+        console.log('Sending track request:', {
+          url: this.config.apiUrl,
+          data: JSON.stringify(data, null, 2),
+          projectId: this.config.projectId
+        });
+
         const response = await fetch(this.config.apiUrl, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'Origin': window.location.origin
+          },
           body: JSON.stringify(data)
         });
 
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error('Server response:', response.status, errorText);
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
+        const responseText = await response.text();
+        console.log('Server response:', {
+          status: response.status,
+          text: responseText
+        });
       }
     } catch (error) {
       console.error('Failed to process queue:', error);

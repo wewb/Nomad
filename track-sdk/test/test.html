@@ -47,13 +47,17 @@
     <button data-track-click="test-button">Test Button</button>
 
     <script type="module">
-        import { register } from '../dist/index.js';
+        import { register, sendEvent, EventName } from '../dist/index.js';
+
+        console.log('SDK loaded, registering...');
 
         // 初始化 SDK
         register({
             projectId: 'test-project',
-            apiUrl: 'http://localhost:3000/track'
+            apiUrl: 'http://localhost:3000/api/track'
         });
+
+        console.log('SDK registered');
 
         // 处理搜索事件
         document.querySelector('[data-track-click="search-submit"]').addEventListener('click', () => {

@@ -2,101 +2,112 @@ import React, { useState, useEffect } from 'react';
 import { Card, MessagePlugin, Row, Col, DateRangePicker } from 'tdesign-react';
 import ReactECharts from 'echarts-for-react';
 import { DashboardIcon, UserIcon, AppIcon } from 'tdesign-icons-react';
+import axios from 'axios';
+import { ChartIcon, BrowseIcon, CodeIcon } from 'tdesign-icons-react';
+
+interface Event {
+  data: {
+    events?: Array<{ type: string }>;
+  };
+  createdAt: string;
+  userEnvInfo?: {
+    uid: string;
+  };
+}
+
+interface StatsResponse {
+  events: Event[];
+  totalEvents: number;
+  uniqueUsers: number;
+  eventTypes: Record<string, number>;
+  browsers: Record<string, number>;
+  os: Record<string, number>;
+}
 
 export function Dashboard() {
-  const [stats, setStats] = useState<any>({});
-  const [totalStats, setTotalStats] = useState<any>({});
-  const [loading, setLoading] = useState(true);
   const [dateRange, setDateRange] = useState<[Date, Date]>([
     new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
     new Date()
   ]);
-
-  const fetchStats = async () => {
-    try {
-      setLoading(true);
-      const [startDate, endDate] = dateRange;
-      const startOfDay = new Date(startDate);
-      startOfDay.setHours(0, 0, 0, 0);
-      const endOfDay = new Date(endDate);
-      endOfDay.setHours(23, 59, 59, 999);
-      
-      // 获取时间范围内的统计
-      const params = new URLSearchParams({
-        startDate: startOfDay.toISOString(),
-        endDate: endOfDay.toISOString()
-      });
-      
-      const [rangeResponse, totalResponse] = await Promise.all([
-        fetch(`/api/track/stats?${params}`),
-        fetch('/api/track/stats/total')  // 新增的总体统计接口
-      ]);
-
-      if (!rangeResponse.ok || !totalResponse.ok) {
-        throw new Error('Failed to fetch stats');
-      }
-
-      const [rangeData, totalData] = await Promise.all([
-        rangeResponse.json(),
-        totalResponse.json()
-      ]);
-
-      setStats(rangeData);
-      setTotalStats(totalData);
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-      MessagePlugin.error('获取统计数据失败');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [stats, setStats] = useState({
+    totalEvents: 0,
+    uniqueUsers: 0,
+    pageViews: 0,
+    errorCount: 0
+  });
+  const [trendData, setTrendData] = useState<{ date: string; count: number }[]>([]);
 
   useEffect(() => {
     fetchStats();
   }, [dateRange]);
 
-  const getTrendOption = () => {
-    // 确保所有日期都有数据，没有数据的填充0
-    const dates = [...new Set(stats.trends?.map((item: any) => item._id.date))].sort();
-    const eventTypes = ['click_event', 'page_view_event', 'custom_event'];
-    const series = eventTypes.map(type => ({
-      name: getEventTypeName(type),
-      type: 'line',
-      smooth: true,
-      data: dates.map(date => {
-        const item = stats.trends?.find(
-          (t: any) => t._id.date === date && t._id.eventName === type
-        );
-        return item?.count || 0;
-      })
-    }));
-
-    return {
-      tooltip: {
-        trigger: 'axis',
-        formatter: (params: any) => {
-          let result = `${params[0].axisValue}<br/>`;
-          params.forEach((param: any) => {
-            result += `${param.seriesName}: ${param.value}次<br/>`;
-          });
-          return result;
+  const fetchStats = async () => {
+    try {
+      const [startDate, endDate] = dateRange;
+      const response = await axios.get('/api/track/stats', {
+        params: {
+          startDate: startDate.toISOString(),
+          endDate: endDate.toISOString()
         }
-      },
-      legend: {
-        data: eventTypes.map(getEventTypeName)
-      },
-      xAxis: {
-        type: 'category',
-        data: dates,
-        boundaryGap: false
-      },
-      yAxis: {
-        type: 'value',
-        name: '事件次数'
-      },
-      series
-    };
+      });
+
+      const { events, totalEvents, uniqueUsers, eventTypes, browsers, os } = response.data as StatsResponse;
+
+      // 统计页面访问和错误数
+      const pageViews = events.reduce((count: number, event: any) => 
+        count + (event.data.events?.filter((e: any) => e.type === 'view').length || 0), 0);
+      
+      const errorCount = events.reduce((count: number, event: any) => 
+        count + (event.data.events?.filter((e: any) => e.type === 'error').length || 0), 0);
+
+      setStats({
+        totalEvents,
+        uniqueUsers,
+        pageViews,
+        errorCount
+      });
+
+      // 处理趋势数据
+      const trend = events.reduce((acc: any, event: any) => {
+        const date = new Date(event.createdAt).toISOString().split('T')[0];
+        acc[date] = (acc[date] || 0) + 1;
+        return acc;
+      }, {});
+
+      setTrendData(Object.entries(trend).map(([date, count]) => ({
+        date,
+        count: count as number
+      })));
+
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+      MessagePlugin.error('获取统计数据失败');
+    }
   };
+
+  const getTrendOption = () => ({
+    tooltip: {
+      trigger: 'axis'
+    },
+    xAxis: {
+      type: 'category',
+      data: trendData.map(item => item.date)
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: '事件数',
+        type: 'line',
+        smooth: true,
+        data: trendData.map(item => item.count),
+        areaStyle: {
+          opacity: 0.1
+        }
+      }
+    ]
+  });
 
   const getPieOption = (data: any[], title: string) => {
     const formattedData = data?.map((item: any) => ({
@@ -147,88 +158,70 @@ export function Dashboard() {
   return (
     <div className="dashboard">
       <Row gutter={[16, 16]}>
-        <Col span={4}>
-          <Card bordered={false} className="dashboard-card">
+        <Col span={3}>
+          <Card className="dashboard-card">
             <div className="dashboard-card__inner">
               <div className="dashboard-card__title">
                 <span>总事件数</span>
-                <DashboardIcon />
+                <ChartIcon />
               </div>
-              <div className="dashboard-card__count">{totalStats.totalEvents || 0}</div>
-              <div className="dashboard-card__trend">
-                所选时间段: {stats.totalEvents || 0}
-              </div>
+              <div className="dashboard-card__count">{stats.totalEvents}</div>
             </div>
           </Card>
         </Col>
-        <Col span={4}>
-          <Card bordered={false} className="dashboard-card">
+        <Col span={3}>
+          <Card className="dashboard-card">
             <div className="dashboard-card__inner">
               <div className="dashboard-card__title">
-                <span>总用户数</span>
+                <span>访问人数</span>
                 <UserIcon />
               </div>
-              <div className="dashboard-card__count">{totalStats.uniqueUsers || 0}</div>
-              <div className="dashboard-card__trend">
-                所选时间段: {stats.uniqueUsers || 0}
-              </div>
+              <div className="dashboard-card__count">{stats.uniqueUsers}</div>
             </div>
           </Card>
         </Col>
-        <Col span={4}>
-          <Card bordered={false} className="dashboard-card">
+        <Col span={3}>
+          <Card className="dashboard-card">
             <div className="dashboard-card__inner">
               <div className="dashboard-card__title">
-                <span>活跃应用数</span>
-                <AppIcon />
+                <span>页面访问</span>
+                <BrowseIcon />
               </div>
-              <div className="dashboard-card__count">{stats.activeApps || 0}</div>
-              <div className="dashboard-card__trend">
-                所选时间段内
-              </div>
+              <div className="dashboard-card__count">{stats.pageViews}</div>
             </div>
           </Card>
         </Col>
-
-        {/* 趋势图 */}
+        <Col span={3}>
+          <Card className="dashboard-card">
+            <div className="dashboard-card__inner">
+              <div className="dashboard-card__title">
+                <span>错误数</span>
+                <CodeIcon />
+              </div>
+              <div className="dashboard-card__count">{stats.errorCount}</div>
+            </div>
+          </Card>
+        </Col>
+        </Row>
+        <Row gutter={[16, 16]}>
+        {/* 事件趋势图表 */}
         <Col span={12}>
-          <div className="chart-panel">
+          <Card>
             <div className="chart-header">
-              <h4>事件趋势(所选时间段)</h4>
+              <h4>事件趋势</h4>
               <DateRangePicker
                 value={dateRange}
                 onChange={(value) => {
                   if (Array.isArray(value) && value.length === 2) {
-                    setDateRange([new Date(value[0]), new Date(value[1])] as [Date, Date]);
+                    setDateRange([new Date(value[0]), new Date(value[1])]);
                   }
                 }}
-                style={{ width: 240 }}
               />
             </div>
             <ReactECharts option={getTrendOption()} style={{ height: 400 }} />
-          </div>
+          </Card>
         </Col>
-
-        {/* 分布图表行 */}
-        <Col span={4}>
-          <div className="chart-panel">
-            <h4>事件类型分布</h4>
-            <ReactECharts option={getPieOption(stats.eventTypes, '')} style={{ height: 320 }} />
-          </div>
-        </Col>
-        <Col span={4}>
-          <div className="chart-panel">
-            <h4>浏览器分布</h4>
-            <ReactECharts option={getPieOption(stats.browsers, '')} style={{ height: 320 }} />
-          </div>
-        </Col>
-        <Col span={4}>
-          <div className="chart-panel">
-            <h4>操作系统分布</h4>
-            <ReactECharts option={getPieOption(stats.os, '')} style={{ height: 320 }} />
-          </div>
-        </Col>
-      </Row>
+        </Row>
     </div>
   );
 } 
