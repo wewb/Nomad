@@ -1,36 +1,35 @@
 import mongoose from 'mongoose';
 
-const projectSchema = new mongoose.Schema({
-  projectId: {
+const endpointSchema = new mongoose.Schema({
+  url: {
     type: String,
-    required: true,
-    unique: true,
-    index: true
+    required: true
   },
   name: {
     type: String,
     required: true
   },
   description: String,
-  endpoints: [{
-    url: {
-      type: String,
-      required: true
-    },
-    name: String,
-    description: String,
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
-  createdAt: {
-    type: Date,
-    default: Date.now
+}, {
+  timestamps: true
+});
+
+const projectSchema = new mongoose.Schema({
+  projectId: {
+    type: String,
+    required: true,
+    unique: true
   },
-  updatedAt: {
-    type: Date,
-    default: Date.now
+  name: {
+    type: String,
+    required: true
+  },
+  description: String,
+  endpoints: [endpointSchema],
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   }
 }, {
   timestamps: true

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Table, Button, MessagePlugin, DatePicker } from 'tdesign-react';
+import { Table, Button, MessagePlugin, DatePicker, Dialog, Space, Row } from 'tdesign-react';
 import { PlusIcon } from 'tdesign-icons-react';
-import axios from 'axios';
+import request from '../../utils/request';
 import { formatDateTime } from '../../utils/date';
 import { useNavigate } from 'react-router-dom';
 
@@ -18,6 +18,10 @@ export function Applications() {
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState<Application[]>([]);
   const navigate = useNavigate();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Application | null>(null);
+  const [deleteCountdown, setDeleteCountdown] = useState(5);
+  const [deleteTimer, setDeleteTimer] = useState<number | null>(null);
 
   const columns = [
     {
@@ -63,7 +67,7 @@ export function Applications() {
           <Button theme="primary" variant="text" onClick={() => handleView(row)}>
             查看
           </Button>
-          <Button theme="danger" variant="text" onClick={() => handleDelete(row)}>
+          <Button theme="danger" variant="text" onClick={() => handleDeleteClick(row)}>
             删除
           </Button>
         </div>
@@ -71,15 +75,11 @@ export function Applications() {
     },
   ];
 
-  useEffect(() => {
-    fetchApplications();
-  }, []);
-
   const fetchApplications = async () => {
-    setLoading(true);
     try {
-      const response = await axios.get<Application[]>('/api/app/list');
-      setData(response.data);
+      setLoading(true);
+      const response = await request.get('/api/app/list');
+      setData(response);
     } catch (error) {
       console.error('Failed to fetch applications:', error);
       MessagePlugin.error('获取应用列表失败');
@@ -88,18 +88,53 @@ export function Applications() {
     }
   };
 
+  useEffect(() => {
+    fetchApplications();
+  }, []);
+
   const handleView = (row: Application) => {
     navigate(`/applications/${row.id}`);
   };
 
-  const handleDelete = async (row: Application) => {
+  const handleDeleteClick = (row: Application) => {
+    setDeleteTarget(row);
+    setDeleteCountdown(5);
+    setShowDeleteDialog(true);
+    
+    // 开始倒计时
+    const timer = setInterval(() => {
+      setDeleteCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    setDeleteTimer(timer);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteDialog(false);
+    setDeleteTarget(null);
+    if (deleteTimer) {
+      clearInterval(deleteTimer);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    
     try {
-      await axios.delete(`/api/app/${row.id}`);
+      await request.delete(`/api/app/${deleteTarget.id}`);
       MessagePlugin.success('删除成功');
       fetchApplications();
     } catch (error) {
       console.error('Failed to delete application:', error);
       MessagePlugin.error('删除失败');
+    } finally {
+      handleDeleteCancel();
     }
   };
 
@@ -110,6 +145,7 @@ export function Applications() {
           新建应用
         </Button>
       </div>
+      <br></br>
       <Table
         loading={loading}
         data={data}
@@ -124,6 +160,26 @@ export function Applications() {
           pageSizeOptions: [10, 20, 50],
         }}
       />
+      <Dialog
+        header="删除确认"
+        visible={showDeleteDialog}
+        onClose={handleDeleteCancel}
+        footer={
+          <Space>
+            <Button onClick={handleDeleteCancel}>取消</Button>
+            <Button 
+              theme="danger" 
+              disabled={deleteCountdown > 0}
+              onClick={handleDelete}
+            >
+              删除{deleteCountdown > 0 ? ` (${deleteCountdown}s)` : ''}
+            </Button>
+          </Space>
+        }
+      >
+        <p>删除应用 "{deleteTarget?.projectId}"</p>
+        <p>确定要永久删除应用 {deleteTarget?.projectId} 以及其中的 {deleteTarget?.endpointCount} 个端点吗？</p>
+      </Dialog>
     </div>
   );
 }

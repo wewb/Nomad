@@ -4,7 +4,7 @@ import {
   Card, Form, Input, Button, Table, MessagePlugin, 
   Dialog, Space 
 } from 'tdesign-react';
-import axios from 'axios';
+import request from '../../utils/request';
 import { formatDateTime } from '../../utils/date';
 const { FormItem } = Form;
 
@@ -32,6 +32,10 @@ export function ApplicationDetail() {
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [showEndpointDialog, setShowEndpointDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Endpoint | null>(null);
+  const [deleteCountdown, setDeleteCountdown] = useState(5);
+  const [deleteTimer, setDeleteTimer] = useState<number | null>(null);
   const [form] = Form.useForm();
   const [endpointForm] = Form.useForm();
 
@@ -48,7 +52,7 @@ export function ApplicationDetail() {
       width: 160,
       cell: ({ row }: { row: Endpoint }) => (
         <Space>
-          <Button theme="danger" variant="text" onClick={() => handleDeleteEndpoint(row)}>
+          <Button theme="danger" variant="text" onClick={() => handleDeleteClick(row)}>
             删除
           </Button>
         </Space>
@@ -62,14 +66,21 @@ export function ApplicationDetail() {
 
   const fetchApplication = async () => {
     try {
-      const response = await axios.get<Application>(`/api/app/detail/${id}`);
-      setApplication(response.data);
+      const response = await request.get(`/api/app/${id}`);
+      console.log('Application response:', response);
+      
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid response data');
+      }
+
+      setApplication(response);
       form.setFieldsValue({
-        projectId: response.data.projectId,
-        name: response.data.name,
-        description: response.data.description,
+        projectId: response.projectId,
+        name: response.name,
+        description: response.description,
       });
     } catch (error) {
+      console.error('Failed to fetch application:', error);
       MessagePlugin.error('获取应用详情失败');
     } finally {
       setLoading(false);
@@ -78,7 +89,7 @@ export function ApplicationDetail() {
 
   const handleSave = async (values: any) => {
     try {
-      await axios.put(`/api/app/${id}`, values);
+      await request.put(`/api/app/${id}`, values);
       MessagePlugin.success('保存成功');
       setIsEditing(false);
       fetchApplication();
@@ -89,7 +100,7 @@ export function ApplicationDetail() {
 
   const handleAddEndpoint = async (values: any) => {
     try {
-      await axios.post(`/api/app/${id}/endpoints`, values);
+      await request.post(`/api/app/${id}/endpoints`, values);
       MessagePlugin.success('添加端点成功');
       setShowEndpointDialog(false);
       endpointForm.reset();
@@ -99,13 +110,43 @@ export function ApplicationDetail() {
     }
   };
 
-  const handleDeleteEndpoint = async (endpoint: Endpoint) => {
+  const handleDeleteClick = (endpoint: Endpoint) => {
+    setDeleteTarget(endpoint);
+    setDeleteCountdown(5);
+    setShowDeleteDialog(true);
+    
+    const timer = setInterval(() => {
+      setDeleteCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    
+    setDeleteTimer(timer);
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteDialog(false);
+    setDeleteTarget(null);
+    if (deleteTimer) {
+      clearInterval(deleteTimer);
+    }
+  };
+
+  const handleDeleteEndpoint = async () => {
+    if (!deleteTarget) return;
+    
     try {
-      await axios.delete(`/api/app/${id}/endpoints/${endpoint.id}`);
+      await request.delete(`/api/app/${id}/endpoints/${deleteTarget.id}`);
       MessagePlugin.success('删除端点成功');
       fetchApplication();
     } catch (error) {
       MessagePlugin.error('删除端点失败');
+    } finally {
+      handleDeleteCancel();
     }
   };
 
@@ -149,7 +190,7 @@ export function ApplicationDetail() {
         }
       >
         <Table
-          data={application.endpoints}
+          data={application.endpoints || []}
           columns={endpointColumns}
           rowKey="id"
         />
@@ -175,6 +216,27 @@ export function ApplicationDetail() {
             <Input />
           </FormItem>
         </Form>
+      </Dialog>
+
+      <Dialog
+        header="删除确认"
+        visible={showDeleteDialog}
+        onClose={handleDeleteCancel}
+        footer={
+          <Space>
+            <Button onClick={handleDeleteCancel}>取消</Button>
+            <Button 
+              theme="danger" 
+              disabled={deleteCountdown > 0}
+              onClick={handleDeleteEndpoint}
+            >
+              删除{deleteCountdown > 0 ? ` (${deleteCountdown}s)` : ''}
+            </Button>
+          </Space>
+        }
+      >
+        <p>删除端点 "{deleteTarget?.name}"</p>
+        <p>确定要永久删除端点 {deleteTarget?.url} 吗？</p>
       </Dialog>
     </div>
   );

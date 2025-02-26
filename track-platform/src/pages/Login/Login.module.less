@@ -3,28 +3,29 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: #f5f5f5;
+  background-color: var(--td-bg-color-page);
+}
 
-  .loginForm {
-    width: 400px;
-    padding: 40px;
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+.loginForm {
+  width: 400px;
+  padding: 40px;
+  background: var(--td-bg-color-container);
+  border-radius: var(--td-radius-medium);
+  box-shadow: var(--td-shadow-1);
 
-    h2 {
-      text-align: center;
+  h2 {
+    text-align: center;
+    margin-bottom: 32px;
+    color: var(--td-text-color-primary);
+  }
+
+  :global {
+    .t-input {
       margin-bottom: 24px;
     }
 
-    :global {
-      .t-form__item {
-        margin-bottom: 24px;
-      }
-
-      .t-button {
-        margin-top: 12px;
-      }
+    .t-button {
+      width: 100%;
     }
   }
 } 

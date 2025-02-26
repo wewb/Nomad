@@ -9,11 +9,7 @@ const lastPageViewTime: Record<string, number> = {};  // 存储每个项目的�
 const DEBOUNCE_TIME = 500;  // 防抖时间 500ms
 
 // 验证端点权限的中间件
-async function validateEndpoint(
-  req: Request,
-  res: Response,
-  next: NextFunction
-) {
+async function validateEndpoint(req: Request, res: Response, next: NextFunction) {
   try {
     const { projectId } = req.body;
     const referer = req.headers.referer || req.headers.origin;
@@ -24,7 +20,7 @@ async function validateEndpoint(
     }
 
     // 查找项目及其授权端点
-    const project = await Project.findOne({ projectId });
+    const project = await Project.findOne({ projectId }).populate('endpoints');
     if (!project) {
       console.log('Project not found:', projectId);
       return res.status(404).json({ error: 'Project not found' });
@@ -43,9 +39,9 @@ async function validateEndpoint(
         const endpointUrl = new URL(endpoint.url);
         // 验证 origin 和路径前缀
         const originMatch = refererUrl.origin === endpointUrl.origin;
-        const basePath = endpointUrl.pathname.split('/').slice(0, -1).join('/'); // 获取目录路径
-        const pathMatch = refererUrl.pathname === '/' || // 允许根路径
-                         refererUrl.pathname.startsWith(basePath); // 允许目录下的所有文件
+        const basePath = endpointUrl.pathname.split('/').slice(0, -1).join('/');
+        const pathMatch = refererUrl.pathname === '/' || 
+                         refererUrl.pathname.startsWith(basePath);
         
         console.log('URL matching:', {
           refererPath: refererUrl.pathname,
@@ -70,7 +66,6 @@ async function validateEndpoint(
       });
     }
 
-    // 将项目信息添加到请求对象
     req.project = project;
     next();
   } catch (error) {
@@ -78,6 +73,24 @@ async function validateEndpoint(
     res.status(500).json({ error: 'Internal server error' });
   }
 }
+
+// 验证请求来源
+const validateReferer = async (referer: string, projectId: string) => {
+  const project = await Project.findOne({ projectId });
+  if (!project) {
+    throw new Error('Project not found');
+  }
+
+  const refererUrl = new URL(referer);
+  const origin = refererUrl.origin;
+
+  // 简单验证 origin 是否合法
+  if (!['http://localhost:5173', 'http://localhost:3000'].includes(origin)) {
+    throw new Error('Invalid referer origin');
+  }
+
+  return project;
+};
 
 // 记录事件
 router.post('/', validateEndpoint, async (req: Request, res: Response) => {

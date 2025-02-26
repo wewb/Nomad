@@ -3,13 +3,14 @@ import { Table, Card, Button, Space, MessagePlugin, Input, Select, Row, Col, Tag
 import type { PrimaryTableCol, PrimaryTableRenderParams, PrimaryTableCellParams } from 'tdesign-react';
 import { useNavigate } from 'react-router-dom';
 import { ChartIcon, SearchIcon, BrowseIcon, DeleteIcon } from 'tdesign-icons-react';
-import axios from 'axios';
+import request from '../../utils/request';
 
 interface EventItem {
   _id: string;
   eventName: string;
-  createdAt: string;
   projectId: string;
+  projectName?: string;
+  createdAt: string;
   eventParams: Record<string, any>;
   userEnvInfo: {
     browserName: string;
@@ -24,11 +25,16 @@ interface EventItem {
   };
 }
 
+interface Application {
+  projectId: string;
+  name: string;
+}
+
 export function Events() {
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<EventItem[]>([]);
   const [searchKey, setSearchKey] = useState('');
-  const [eventType, setEventType] = useState<string>('');
+  const [projectId, setProjectId] = useState<string>('');
   const [browser, setBrowser] = useState<string>('');
   const [os, setOs] = useState<string>('');
   const [dateRange, setDateRange] = useState<[Date, Date]>([
@@ -41,7 +47,7 @@ export function Events() {
   const getBrowserOptions = () => {
     const browsers = [...new Set(data.map(item => item.userEnvInfo?.browserName).filter(Boolean))];
     return [
-      { label: '全部', value: '' },
+      { label: '全部(浏览器)', value: '' },
       ...browsers.map(browser => ({ label: browser, value: browser }))
     ];
   };
@@ -49,8 +55,24 @@ export function Events() {
   const getOsOptions = () => {
     const systems = [...new Set(data.map(item => item.userEnvInfo?.osName).filter(Boolean))];
     return [
-      { label: '全部', value: '' },
+      { label: '全部(操作系统)', value: '' },
       ...systems.map(os => ({ label: os, value: os }))
+    ];
+  };
+
+  // 添加获取项目选项的函数
+  const getProjectOptions = () => {
+    const projects = [...new Set(data.map(item => ({
+      projectId: item.projectId,
+      projectName: item.projectName
+    })))];
+    
+    return [
+      { label: '全部应用', value: '' },
+      ...projects.map(p => ({ 
+        label: p.projectName || p.projectId, 
+        value: p.projectId 
+      }))
     ];
   };
 
@@ -95,11 +117,23 @@ export function Events() {
       })
     },
     {
-      title: '事件名称',
-      colKey: 'eventName',
-      width: 120,
-      cell: ({ row }) => EVENT_NAME_MAP[row.eventName as EventNameType] || row.eventName
+      title: '所属项目',
+      colKey: 'projectName',
+      width: 200,
+      cell: ({ row }) => (
+        <Space>
+          <Tag theme="primary" variant="light">
+            {row.projectName || row.projectId}
+          </Tag>
+        </Space>
+      ),
     },
+    // {
+    //   title: '事件名称',
+    //   colKey: 'eventName',
+    //   width: 120,
+    //   cell: ({ row }) => EVENT_NAME_MAP[row.eventName as EventNameType] || row.eventName
+    // },
     {
       title: '页面标题',
       colKey: 'userEnvInfo.pageTitle',
@@ -200,8 +234,21 @@ export function Events() {
         endDate: endDate.toISOString()
       });
       
-      const response = await axios.get<EventItem[]>('/api/track/list', { params });
-      setData(response.data);
+      // 使用 request 工具替换 axios
+      const response = await request.get('/api/track/list', { params });
+      
+      // 获取所有涉及的项目信息
+      const projectIds = [...new Set(response.map((event: EventItem) => event.projectId))];
+      const projectsResponse = await request.get<any, Application[]>('/api/app/list');
+      const projectMap = new Map(projectsResponse.map((p: Application) => [p.projectId, p.name]));
+      
+      // 添加项目名称到事件数据
+      const eventsWithProject = response.map((event: EventItem) => ({
+        ...event,
+        projectName: projectMap.get(event.projectId)
+      }));
+      
+      setData(eventsWithProject);
     } catch (error) {
       console.error('Failed to fetch events:', error);
       MessagePlugin.error('获取事件列表失败');
@@ -214,10 +261,11 @@ export function Events() {
     fetchEvents();
   }, [dateRange]);
 
+  // 修改筛选逻辑
   const filteredData = data.filter(item => {
     return (
       (searchKey ? item._id.includes(searchKey) : true) &&
-      (eventType ? item.eventName === eventType : true) &&
+      (projectId ? item.projectId === projectId : true) &&  // 使用项目ID筛选
       (browser ? item.userEnvInfo?.browserName === browser : true) &&
       (os ? item.userEnvInfo?.osName === os : true)
     );
@@ -240,15 +288,10 @@ export function Events() {
                 </Col>
                 <Col flex="160px">
                   <Select
-                    value={eventType}
-                    onChange={(value) => setEventType(value as string)}
-                    placeholder="事件类型"
-                    options={[
-                      { label: '全部', value: '' },
-                      { label: '点击事件', value: 'click_event' },
-                      { label: '页面访问', value: 'page_view_event' },
-                      { label: '自定义事件', value: 'custom_event' },
-                    ]}
+                    value={projectId}
+                    onChange={(value) => setProjectId(value as string)}
+                    placeholder="选择应用"
+                    options={getProjectOptions()}
                   />
                 </Col>
                 <Col flex="160px">

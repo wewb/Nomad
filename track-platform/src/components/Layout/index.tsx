@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Layout as TLayout, Menu } from 'tdesign-react';
+import { Layout as TLayout, Menu, Button, Dropdown } from 'tdesign-react';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { 
   DashboardIcon, 
@@ -11,8 +11,12 @@ import {
   HelpCircleIcon,
   MenuFoldIcon,
   MenuUnfoldIcon,
+  ChartScatterIcon,
+  ApiIcon,
+  UserIcon,
 } from 'tdesign-icons-react';
 import styles from './Layout.module.less';
+import { clearAuthToken } from '../../services/auth';
 
 const { Header, Content, Aside } = TLayout;
 const { HeadMenu, MenuItem, MenuGroup } = Menu;
@@ -48,6 +52,11 @@ export function Layout() {
   const [collapsed, setCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+
+  const handleLogout = () => {
+    clearAuthToken();
+    navigate('/login');
+  };
 
   return (
     <TLayout className={styles.layout}>
@@ -94,7 +103,7 @@ export function Layout() {
               <MenuItem value="/events" icon={<ChartIcon />}>
                 事件列表
               </MenuItem>
-              <MenuItem value="/event-analysis" icon={<ChartIcon />}>
+              <MenuItem value="/event-analysis" icon={<ChartScatterIcon />}>
                 事件分析
               </MenuItem>
             </MenuGroup>
@@ -103,12 +112,34 @@ export function Layout() {
                 应用管理
               </MenuItem>
             </MenuGroup>
+            <MenuGroup title="系统管理">
+              <MenuItem value="/settings/users" icon={<UserCircleIcon />}>
+                用户管理
+              </MenuItem>
+              <MenuItem value="/settings/api" icon={<ApiIcon />}>
+                API设置
+              </MenuItem>
+              <MenuItem value="/settings/system" icon={<SettingIcon />}>
+                系统设置
+              </MenuItem>
+            </MenuGroup>
           </Menu>
         </Aside>
         <Content>
           <Outlet />
         </Content>
       </TLayout>
+      <Dropdown options={[
+        {
+          content: '退出登录',
+          value: 'logout',
+          onClick: handleLogout
+        }
+      ]}>
+        <Button variant="text">
+          <UserIcon />
+        </Button>
+      </Dropdown>
     </TLayout>
   );
 } 
