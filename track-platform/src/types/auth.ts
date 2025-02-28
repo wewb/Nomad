@@ -14,6 +14,7 @@ export interface User {
   role: string;
   apiKey: string | null;
   isActive: boolean;
+  accessibleProjects: string[];
   createdAt: string;
   updatedAt: string;
 } 

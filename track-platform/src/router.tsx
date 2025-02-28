@@ -13,6 +13,7 @@ import { PrivateRoute } from './components/PrivateRoute';
 import { UserManagement } from './pages/Settings/UserManagement';
 import { ApiSettings } from './pages/Settings/ApiSettings';
 import { SystemSettings } from './pages/Settings/SystemSettings';
+import { EventDetail } from './pages/EventDetail';
 
 const router = createBrowserRouter([
   {
@@ -71,6 +72,10 @@ const router = createBrowserRouter([
       {
         path: 'settings/system',
         element: <SystemSettings />,
+      },
+      {
+        path: 'events/:id',
+        element: <EventDetail />,
       },
     ],
   },

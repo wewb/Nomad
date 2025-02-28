@@ -3,6 +3,7 @@ import { User, UserRole } from '../models/User';
 import { auth, adminOnly } from '../middleware/auth';
 import { validateCreateUser } from '../middleware/validate';
 import jwt from 'jsonwebtoken';
+import { Request, Response } from 'express';
 
 const router = express.Router();
 
@@ -65,14 +66,34 @@ router.get('/', auth, adminOnly, async (req, res) => {
   }
 });
 
-// 创建用户 (仅管理员)
-router.post('/', auth, adminOnly, validateCreateUser, async (req, res) => {
+// 创建用户
+router.post('/', auth, adminOnly, validateCreateUser, async (req: Request, res: Response) => {
   try {
-    const user = new User(req.body);
+    const { email, password, role } = req.body;
+    
+    const user = new User({
+      email,
+      password, // 密码会在 User model 的 pre save 中自动加密
+      role: role || 'user',
+      isActive: true
+    });
+
     await user.save();
-    res.status(201).json(user);
+    
+    // 不返回密码字段
+    const userResponse = {
+      _id: user._id,
+      email: user.email,
+      role: user.role,
+      isActive: user.isActive,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt
+    };
+
+    res.status(201).json(userResponse);
   } catch (error) {
-    res.status(400).json({ error: 'Failed to create user' });
+    console.error('Failed to create user:', error);
+    res.status(400).json({ error: error instanceof Error ? error.message : 'Failed to create user' });
   }
 });
 
@@ -109,6 +130,36 @@ router.post('/:id/api-key', auth, adminOnly, async (req, res) => {
     res.json({ apiKey });
   } catch (error) {
     res.status(500).json({ error: 'Failed to generate API key' });
+  }
+});
+
+// 配置用户可读项目
+router.put('/:id/projects', auth, adminOnly, async (req: Request, res: Response) => {
+  try {
+    const { projectIds } = req.body;
+    const user = await User.findById(req.params.id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.role === 'admin') {
+      return res.status(400).json({ error: 'Cannot configure projects for admin users' });
+    }
+
+    // 确保 projectIds 是有效的数组
+    if (!Array.isArray(projectIds)) {
+      return res.status(400).json({ error: 'Invalid project IDs format' });
+    }
+
+    // 过滤掉无效的值
+    user.accessibleProjects = projectIds.filter(id => id && typeof id === 'string');
+    await user.save();
+
+    res.json({ message: 'Projects updated successfully' });
+  } catch (error) {
+    console.error('Failed to update user projects:', error);
+    res.status(500).json({ error: 'Failed to update user projects' });
   }
 });
 

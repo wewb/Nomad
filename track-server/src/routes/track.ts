@@ -3,6 +3,7 @@ import { Event } from '../models/Event';
 import { Session } from '../models/Session';
 import geoip from 'geoip-lite';
 import { Project } from '../models/Project';
+import { auth } from '../middleware/auth';
 
 const router = express.Router();
 const lastPageViewTime: Record<string, number> = {};  // 存储每个项目的最后页面访问时间
@@ -279,6 +280,20 @@ router.get('/stats/total', async (req, res) => {
   } catch (error) {
     console.error('Failed to get total stats:', error);
     res.status(500).json({ error: 'Failed to get total stats' });
+  }
+});
+
+// 获取单个事件详情
+router.get('/:id', auth, async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+    res.json(event);
+  } catch (error) {
+    console.error('Failed to fetch event:', error);
+    res.status(500).json({ error: 'Failed to fetch event' });
   }
 });
 
