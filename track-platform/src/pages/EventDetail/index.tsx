@@ -135,7 +135,9 @@ export function EventDetail() {
               <Col xs={24} xl={12}>
                   <Card title="基本信息" bordered className="detail-card">
                       <Descriptions layout="vertical" column={4}>
-                          <Descriptions.DescriptionsItem label="事件ID">{event._id}</Descriptions.DescriptionsItem>
+                          <Descriptions.DescriptionsItem label="事件ID">
+                              {event._id}
+                          </Descriptions.DescriptionsItem>
                           <Descriptions.DescriptionsItem label="项目ID">{event.projectId}</Descriptions.DescriptionsItem>
                           {/* <Descriptions.DescriptionsItem label="事件类型">
                              <Tag theme="primary" variant="light">{event.type}</Tag>

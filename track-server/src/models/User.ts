@@ -29,10 +29,10 @@ const userSchema = new mongoose.Schema({
     unique: true,
     sparse: true
   },
-  accessibleProjects: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Project'
-  }],
+  accessibleProjects: {
+    type: [String],
+    default: []
+  },
   isActive: {
     type: Boolean,
     default: true
@@ -66,9 +66,8 @@ userSchema.methods.comparePassword = async function(candidatePassword: string): 
 
 // 生成 API Key 方法
 userSchema.methods.generateApiKey = function(): string {
-  const apiKey = crypto.randomBytes(32).toString('hex');
-  this.apiKey = apiKey;
-  return apiKey;
+  this.apiKey = crypto.randomBytes(32).toString('hex');
+  return this.apiKey;
 };
 
 export interface IUser extends mongoose.Document {
@@ -76,7 +75,7 @@ export interface IUser extends mongoose.Document {
   email: string;
   password: string;
   role: UserRole;
-  apiKey: string | null;
+  apiKey?: string;
   accessibleProjects: mongoose.Types.ObjectId[];
   isActive: boolean;
   createdAt: Date;

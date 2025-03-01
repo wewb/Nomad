@@ -9,7 +9,9 @@ export interface LoginResponse {
 }
 
 export interface User {
-  _id: string;
+  _id: {
+    $oid: string;
+  };
   email: string;
   role: string;
   apiKey: string | null;

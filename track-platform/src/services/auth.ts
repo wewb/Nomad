@@ -1,6 +1,13 @@
 import request from '../utils/request';
 import { LoginForm, LoginResponse } from '../types/auth';
 
+interface User {
+  _id: string;
+  username: string;
+  email: string;
+  role: string;
+}
+
 export const login = async (data: LoginForm): Promise<LoginResponse> => {
   const response = await request.post<LoginForm, LoginResponse>('/api/users/login', data);
   if (response.token) {
@@ -30,4 +37,13 @@ export const initAuthToken = () => {
   if (!token) {
     clearAuthToken();
   }
-}; 
+};
+
+export async function getCurrentUser(): Promise<User> {
+  const response = await request.get('/api/users/me');
+  return response.data;
+}
+
+export async function logout() {
+  return request.post('/api/auth/logout');
+} 

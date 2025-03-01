@@ -2,14 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { Table, Button, Dialog, Form, Input, Select, MessagePlugin, Space, Transfer, Tag } from 'tdesign-react';
 import type { PrimaryTableCol, TransferValue } from 'tdesign-react';
 import request from '../../utils/request';
-import { User } from '../../types/auth';
+import { User as AuthUser } from '../../types/auth';
 
 const { FormItem } = Form;
 
+interface MongoId {
+  $oid: string;
+}
+
 interface Project {
-  _id: string;
+  _id: MongoId;
   name: string;
   projectId: string;
+}
+
+interface User extends Omit<AuthUser, '_id'> {
+  _id: MongoId;
 }
 
 export function UserManagement() {
@@ -20,6 +28,7 @@ export function UserManagement() {
   const [showProjectDialog, setShowProjectDialog] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [form] = Form.useForm();
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
 
   const columns: PrimaryTableCol<User>[] = [
     { title: '邮箱', colKey: 'email', width: '25%' },
@@ -45,7 +54,7 @@ export function UserManagement() {
       width: '25%',
       cell: ({ row }) => (
         <Space size={8}>
-          <Button theme="primary" variant="text" onClick={() => handleGenerateApiKey(row._id)}>
+          <Button theme="primary" variant="text" onClick={() => handleGenerateApiKey(row._id.$oid)}>
             生成API Key
           </Button>
           {row.role !== 'admin' && (
@@ -76,8 +85,12 @@ export function UserManagement() {
   const fetchProjects = async () => {
     try {
       const response = await request.get<any, Project[]>('/api/app/list');
-      console.log('Fetched projects:', response); // 检查获取的项目数据
-      setProjects(response);
+      // 保持原始 _id 结构
+      const formattedProjects = response.map(p => ({
+        ...p,
+        _id: p._id  // 不转换 _id
+      }));
+      setProjects(formattedProjects);
     } catch (error) {
       MessagePlugin.error('获取项目列表失败');
     }
@@ -95,6 +108,7 @@ export function UserManagement() {
 
   const handleConfigProjects = (user: User) => {
     setCurrentUser(user);
+    setSelectedProjects(user.accessibleProjects || []);
     setShowProjectDialog(true);
   };
 
@@ -102,7 +116,7 @@ export function UserManagement() {
     if (!currentUser) return;
     
     try {
-      await request.put(`/api/users/${currentUser._id}/projects`, {
+      await request.post(`/api/users/${currentUser._id.$oid}/projects`, {
         projectIds: selectedIds
       });
       MessagePlugin.success('配置成功');
@@ -140,7 +154,7 @@ export function UserManagement() {
         loading={loading}
         data={users}
         columns={columns}
-        rowKey="_id"
+        rowKey="id"
         hover
       />
 
@@ -174,44 +188,45 @@ export function UserManagement() {
           if (!currentUser) return;
           
           try {
-            const values = form.getFieldsValue(['projects']);
-            console.log('Form values:', values);
+            // 打印完整的 currentUser 对象
+            console.log('Current user:', currentUser);
+            console.log('User ID type:', typeof currentUser._id);
             
-            if (!Array.isArray(values.projects) || values.projects.length === 0) {
-              return MessagePlugin.warning('请选择至少一个应用');
-            }
+            // 如果 _id 是字符串，直接使用
+            const userId = typeof currentUser._id === 'string' 
+              ? currentUser._id 
+              : currentUser._id.$oid;
 
-            await request.post(`/api/users/${currentUser._id}/projects`, {
-              projectIds: values.projects
+            console.log('Using userId:', userId);
+
+            await request.post('/api/users/projects', {
+              userId,
+              projectIds: selectedProjects
             });
             MessagePlugin.success('配置成功');
             setShowProjectDialog(false);
             fetchUsers();
           } catch (error) {
-            console.error('Config projects error:', error);
+            console.error('Failed to update projects:', error);
             MessagePlugin.error('配置失败');
           }
         }}
         style={{ width: '500px' }}
       >
-        <Form form={form}>
-          <FormItem name="projects" label="可读应用">
-            <Select
-              multiple
-              defaultValue={currentUser?.accessibleProjects}  // 使用 defaultValue
-              options={projects.map(p => ({
-                label: `${p.name} (${p.projectId})`,
-                value: p._id  // 确保这里是 ObjectId
-              }))}
-              onChange={(value) => {
-                console.log('Select onChange value:', value); // 检查选择变化
-                form.setFieldsValue({ projects: value });
-              }}
-              placeholder="请选择可访问的应用"
-              style={{ width: '100%' }}
-            />
-          </FormItem>
-        </Form>
+        <Select
+          multiple
+          value={selectedProjects}
+          onChange={(value) => {
+            console.log('Selected projectIds:', value);
+            setSelectedProjects(value as string[]);
+          }}
+          options={projects.map(p => ({
+            label: `${p.name} (${p.projectId})`,
+            value: p.projectId
+          }))}
+          placeholder="请选择可访问的应用"
+          style={{ width: '100%' }}
+        />
       </Dialog>
     </div>
   );

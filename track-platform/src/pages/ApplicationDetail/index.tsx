@@ -9,10 +9,10 @@ import { formatDateTime } from '../../utils/date';
 const { FormItem } = Form;
 
 interface Endpoint {
-  id: string;
-  url: string;
+  _id: string;
   name: string;
-  description: string;
+  url: string;
+  description?: string;
   createdAt: string;
 }
 
@@ -98,15 +98,42 @@ export function ApplicationDetail() {
     }
   };
 
-  const handleAddEndpoint = async (values: any) => {
+  const handleAddEndpoint = async () => {
     try {
-      await request.post(`/api/app/${id}/endpoints`, values);
-      MessagePlugin.success('添加端点成功');
-      setShowEndpointDialog(false);
-      endpointForm.reset();
-      fetchApplication();
+      await endpointForm.validate();
+      const values = endpointForm.getFieldsValue(true);
+      
+      // 确保必填字段存在
+      if (!values.name || !values.url) {
+        MessagePlugin.warning('请填写必填字段');
+        return;
+      }
+      
+      // 创建新端点
+      const endpoint = {
+        name: values.name,
+        url: values.url,
+        description: values.description || ''
+      };
+      
+      // 发送请求添加端点
+      const response = await request.post(`/api/app/${id}/endpoints`, endpoint);
+      
+      // 更灵活地处理响应
+      const responseData = response as any;
+      // 只要响应状态码是成功的，就认为添加成功
+      if (responseData) {
+        // 更新应用数据
+        fetchApplication();
+        MessagePlugin.success('端点添加成功');
+        setShowEndpointDialog(false);
+        endpointForm.reset();
+      } else {
+        MessagePlugin.error('端点添加失败');
+      }
     } catch (error) {
-      MessagePlugin.error('添加端点失败');
+      console.error('Failed to add endpoint:', error);
+      MessagePlugin.error('端点添加失败');
     }
   };
 
@@ -140,10 +167,18 @@ export function ApplicationDetail() {
     if (!deleteTarget) return;
     
     try {
-      await request.delete(`/api/app/${id}/endpoints/${deleteTarget.id}`);
+      // 确保使用正确的端点ID
+      const endpointId = deleteTarget._id;
+      if (!endpointId) {
+        MessagePlugin.error('无效的端点ID');
+        return;
+      }
+      
+      await request.delete(`/api/app/${id}/endpoints/${endpointId}`);
       MessagePlugin.success('删除端点成功');
       fetchApplication();
     } catch (error) {
+      console.error('Failed to delete endpoint:', error);
       MessagePlugin.error('删除端点失败');
     } finally {
       handleDeleteCancel();

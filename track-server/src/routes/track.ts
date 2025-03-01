@@ -4,6 +4,7 @@ import { Session } from '../models/Session';
 import geoip from 'geoip-lite';
 import { Project } from '../models/Project';
 import { auth } from '../middleware/auth';
+import { checkProjectAccess, restrictToAdmin } from '../middleware/projectAccess';
 
 const router = express.Router();
 const lastPageViewTime: Record<string, number> = {};  // 存储每个项目的最后页面访问时间
@@ -185,22 +186,43 @@ router.get('/stats', async (req: Request, res: Response) => {
 });
 
 // 获取事件列表
-router.get('/list', async (req, res) => {
+router.get('/list', auth, async (req, res) => {
   try {
-    const events = await Event.find()
+    const user = req.user;
+    const query: any = {};
+
+    // 非管理员只能查看有权限的项目事件
+    if (user?.role !== 'admin') {
+      query.projectId = { $in: user?.accessibleProjects || [] };
+    }
+
+    const events = await Event.find(query)
       .sort({ createdAt: -1 })
       .limit(100);
 
     res.json(events);
   } catch (error) {
     console.error('Error fetching events:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: 'Failed to fetch events' });
   }
 });
 
 // 删除事件
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', auth, restrictToAdmin, async (req, res) => {
   try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ error: 'Event not found' });
+    }
+
+    // 如果是普通用户，检查是否有权限访问该事件所属的项目
+    if (req.user?.role !== 'admin') {
+      const projectIds = req.user?.accessibleProjects?.map((id: any) => id.toString()) || [];
+      if (!projectIds.includes(event.projectId.toString())) {
+        return res.status(403).json({ error: 'No permission to delete this event' });
+      }
+    }
+
     await Event.findByIdAndDelete(req.params.id);
     res.json({ message: 'Event deleted successfully' });
   } catch (error) {
@@ -286,6 +308,11 @@ router.get('/stats/total', async (req, res) => {
 // 获取单个事件详情
 router.get('/:id', auth, async (req, res) => {
   try {
+    // 确保不是 'list' 路径
+    if (req.params.id === 'list') {
+      return res.status(400).json({ error: 'Invalid event ID' });
+    }
+
     const event = await Event.findById(req.params.id);
     if (!event) {
       return res.status(404).json({ error: 'Event not found' });

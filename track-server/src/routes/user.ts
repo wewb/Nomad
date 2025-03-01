@@ -1,9 +1,12 @@
-import express from 'express';
+import express, { Request, Response } from 'express';
 import { User, UserRole } from '../models/User';
+import { ApiKey } from '../models/ApiKey';
+
 import { auth, adminOnly } from '../middleware/auth';
 import { validateCreateUser } from '../middleware/validate';
 import jwt from 'jsonwebtoken';
-import { Request, Response } from 'express';
+import bcrypt from 'bcrypt';
+import crypto from 'crypto';
 
 const router = express.Router();
 
@@ -117,49 +120,137 @@ router.patch('/:id/status', auth, adminOnly, async (req, res) => {
 });
 
 // 生成 API Key
-router.post('/:id/api-key', auth, adminOnly, async (req, res) => {
+router.get('/key', auth, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const user = await User.findById(req.user!._id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    const apiKey = user.generateApiKey();
-    await user.save();
+    if (!user.apiKey) {
+      return res.status(404).json({ error: 'API key not found' });
+    }
     
-    res.json({ apiKey });
+    // 返回格式化的API密钥数据
+    res.json({ 
+      data: {
+        _id: user._id,
+        key: user.apiKey,
+        name: user.email, // 使用邮箱作为密钥名称
+        userId: user._id
+      } 
+    });
   } catch (error) {
-    res.status(500).json({ error: 'Failed to generate API key' });
+    console.error('Failed to fetch user API key:', error);
+    res.status(500).json({ error: 'Failed to fetch API key' });
   }
 });
 
-// 配置用户可读项目
-router.put('/:id/projects', auth, adminOnly, async (req: Request, res: Response) => {
+// 创建新的API密钥 (如果已存在则替换)
+router.post('/key', auth, async (req, res) => {
   try {
-    const { projectIds } = req.body;
-    const user = await User.findById(req.params.id);
-    
+    const { name } = req.body;
+    if (!name) {
+      return res.status(400).json({ error: 'Name is required' });
+    }
+
+    // 查找用户
+    const user = await User.findById(req.user!._id);
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (user.role === 'admin') {
-      return res.status(400).json({ error: 'Cannot configure projects for admin users' });
+    // 创建新密钥
+    const key = crypto.randomBytes(32).toString('hex');
+    user.apiKey = key;
+    await user.save();
+    
+    // 返回格式化的API密钥数据
+    res.status(201).json({ 
+      data: {
+        _id: user._id,
+        key: user.apiKey,
+        name: name,
+        userId: user._id
+      } 
+    });
+  } catch (error) {
+    console.error('Failed to create API key:', error);
+    res.status(500).json({ error: 'Failed to create API key' });
+  }
+});
+
+// 删除API密钥
+router.delete('/key', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user!._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (!user.apiKey) {
+      return res.status(404).json({ error: 'API key not found' });
+    }
+    
+    // 删除密钥
+    user.apiKey = undefined;
+    await user.save();
+    
+    res.json({ message: 'API key deleted successfully' });
+  } catch (error) {
+    console.error('Failed to delete API key:', error);
+    res.status(500).json({ error: 'Failed to delete API key' });
+  }
+});
+
+// 配置用户项目权限
+router.post('/projects', auth, adminOnly, async (req: Request, res: Response) => {
+  try {
+    console.log('Received request body:', req.body); // 调试日志
+
+    const { userId, projectIds } = req.body;
+    
+    // 验证请求数据
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
     }
 
-    // 确保 projectIds 是有效的数组
     if (!Array.isArray(projectIds)) {
-      return res.status(400).json({ error: 'Invalid project IDs format' });
+      return res.status(400).json({ error: 'Project IDs must be an array' });
     }
 
-    // 过滤掉无效的值
-    user.accessibleProjects = projectIds.filter(id => id && typeof id === 'string');
+    // 查找用户
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // 更新用户的可访问项目列表
+    user.accessibleProjects = projectIds;
     await user.save();
 
-    res.json({ message: 'Projects updated successfully' });
+    res.json({
+      message: 'Projects updated successfully',
+      accessibleProjects: user.accessibleProjects
+    });
+
   } catch (error) {
-    console.error('Failed to update user projects:', error);
-    res.status(500).json({ error: 'Failed to update user projects' });
+    console.error('Error updating user projects:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// 获取当前用户信息
+router.get('/me', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user!._id).select('-password');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (error) {
+    console.error('Failed to fetch user:', error);
+    res.status(500).json({ error: 'Failed to fetch user' });
   }
 });
 
