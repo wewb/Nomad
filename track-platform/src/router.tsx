@@ -14,6 +14,7 @@ import { UserManagement } from './pages/Settings/UserManagement';
 import { ApiSettings } from './pages/Settings/ApiSettings';
 import { SystemSettings } from './pages/Settings/SystemSettings';
 import { EventDetail } from './pages/EventDetail';
+import { ApiDocs } from './pages/ApiDocs';
 
 const router = createBrowserRouter([
   {
@@ -76,6 +77,10 @@ const router = createBrowserRouter([
       {
         path: 'events/:id',
         element: <EventDetail />,
+      },
+      {
+        path: 'api-docs',
+        element: <ApiDocs />,
       },
     ],
   },

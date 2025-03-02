@@ -14,6 +14,7 @@ import {
   ChartScatterIcon,
   ApiIcon,
   UserIcon,
+  QuestionnaireIcon,
 } from 'tdesign-icons-react';
 import styles from './Layout.module.less';
 import { clearAuthToken } from '../../services/auth';
@@ -121,6 +122,11 @@ export function Layout() {
               </MenuItem>
               <MenuItem value="/settings/system" icon={<SettingIcon />}>
                 系统设置
+              </MenuItem>
+            </MenuGroup>
+            <MenuGroup title="帮助中心">
+              <MenuItem value="/api-docs" icon={<QuestionnaireIcon />}>
+                API文档
               </MenuItem>
             </MenuGroup>
           </Menu>

@@ -26,8 +26,6 @@ const userSchema = new mongoose.Schema({
   },
   apiKey: {
     type: String,
-    unique: true,
-    sparse: true
   },
   accessibleProjects: {
     type: [String],

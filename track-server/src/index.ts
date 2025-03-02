@@ -5,7 +5,7 @@ import { connectDB, closeDB } from './db';
 import { applicationRouter } from './routes/application';
 import userRouter from './routes/user';
 import { trackRouter } from './routes/track';
-
+import { apiRouter } from './routes/api';
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
@@ -21,6 +21,7 @@ app.use(express.json());
 app.use('/api/users', userRouter);
 app.use('/api/app', applicationRouter);
 app.use('/api/track', trackRouter);
+app.use('/api-key', apiRouter);
 
 // 启动服务器
 const startServer = async () => {
