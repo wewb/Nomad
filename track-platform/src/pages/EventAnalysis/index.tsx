@@ -112,7 +112,7 @@ export function EventAnalysis() {
           <Card bordered={false} className="dashboard-card">
             <div className="dashboard-card__inner">
               <div className="dashboard-card__title">
-                <span>总事件数</span>
+                <span>总事件数(PV)</span>
                 <ChartIcon />
               </div>
               <div className="dashboard-card__count">{data.reduce((sum, item) => sum + item.count, 0)}</div>

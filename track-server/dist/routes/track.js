@@ -228,10 +228,35 @@ router.get('/analysis', async (req, res) => {
                 }
             },
             {
+                $project: {
+                    eventName: 1,
+                    createdAt: 1,
+                    // 生成唯一用户标识
+                    uniqueId: { 
+                        $cond: [
+                            { $and: [
+                                { $ne: ["$userEnvInfo.uid", null] },
+                                { $ne: ["$userEnvInfo.uid", ""] }
+                            ]},
+                            "$userEnvInfo.uid",
+                            { $concat: [
+                                { $ifNull: ["$userEnvInfo.userAgent", ""] },
+                                "-",
+                                { $ifNull: ["$userEnvInfo.browserName", ""] },
+                                "-",
+                                { $ifNull: ["$userEnvInfo.osName", ""] },
+                                "-",
+                                { $ifNull: ["$userEnvInfo.screenResolution", ""] }
+                            ]}
+                        ]
+                    }
+                }
+            },
+            {
                 $group: {
                     _id: '$eventName',
                     count: { $sum: 1 },
-                    uniqueUsers: { $addToSet: '$userEnvInfo.uid' },
+                    uniqueUsers: { $addToSet: '$uniqueId' },
                     lastTriggered: { $max: '$createdAt' },
                     timestamps: { $push: '$createdAt' }
                 }
@@ -274,13 +299,43 @@ router.get('/analysis', async (req, res) => {
 router.get('/stats/total', async (req, res) => {
     try {
         const totalEvents = await Event_1.Event.countDocuments();
-        const uniqueUsers = await Event_1.Event.distinct('userEnvInfo.uid').then(uids => uids.length);
+        
+        // 修改独立用户计算逻辑
+        // 使用多种字段组合来识别唯一用户
+        const uniqueUsers = await Event_1.Event.aggregate([
+            { $match: { "userEnvInfo": { $exists: true } }},
+            { $project: {
+                // 如果有 uid 就用 uid，否则使用 userAgent + browserName + osName + screenResolution 的组合
+                uniqueId: { 
+                    $cond: [
+                        { $and: [
+                            { $ne: ["$userEnvInfo.uid", null] },
+                            { $ne: ["$userEnvInfo.uid", ""] }
+                        ]},
+                        "$userEnvInfo.uid",
+                        { $concat: [
+                            { $ifNull: ["$userEnvInfo.userAgent", ""] },
+                            "-",
+                            { $ifNull: ["$userEnvInfo.browserName", ""] },
+                            "-",
+                            { $ifNull: ["$userEnvInfo.osName", ""] },
+                            "-",
+                            { $ifNull: ["$userEnvInfo.screenResolution", ""] }
+                        ]}
+                    ]
+                }
+            }},
+            { $group: { _id: "$uniqueId" }},
+            { $count: "count" }
+        ]).then(result => (result.length > 0 ? result[0].count : 0));
+        
+        console.log('Stats calculation:', { totalEvents, uniqueUsers });
+        
         res.json({
             totalEvents,
             uniqueUsers,
         });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Failed to get total stats:', error);
         res.status(500).json({ error: 'Failed to get total stats' });
     }
@@ -302,5 +357,36 @@ router.get('/:id', auth_1.auth, async (req, res) => {
         console.error('Failed to fetch event:', error);
         res.status(500).json({ error: 'Failed to fetch event' });
     }
+});
+// 修改事件处理路由，确保正确处理会话数据
+router.post('/collect', async (req, res) => {
+  try {
+    const { projectId, type, data, userEnvInfo } = req.body;
+    
+    // 确保 userEnvInfo 包含 uid
+    if (userEnvInfo && !userEnvInfo.uid) {
+      // 如果客户端没有提供 uid，生成一个临时 ID
+      const crypto = require('crypto');
+      userEnvInfo.uid = crypto.randomBytes(16).toString('hex');
+    }
+    
+    console.log('Received event data:', { projectId, type, data: JSON.stringify(data).substring(0, 100) + '...' });
+    
+    // 创建并保存事件
+    const event = new Event_1.Event({
+      projectId,
+      type,
+      data,
+      userEnvInfo: userEnvInfo || {}
+    });
+    
+    await event.save();
+    console.log('Event saved successfully with ID:', event._id);
+    
+    res.status(201).json({ success: true, eventId: event._id });
+  } catch (error) {
+    console.error('Failed to save event:', error);
+    res.status(500).json({ error: 'Failed to save event' });
+  }
 });
 exports.trackRouter = router;

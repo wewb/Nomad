@@ -1,6 +1,7 @@
 import { EventName } from './types.js';
+import { v4 as uuidv4 } from 'uuid';
 class TrackPoint {
-    constructor() {
+    constructor(projectId, endpoint) {
         this.commonParams = {};
         this.requestQueue = [];
         this.isProcessingQueue = false;
@@ -11,12 +12,17 @@ class TrackPoint {
         this.lastEventTime = {};
         this.DEBOUNCE_TIME = 500;
         this.currentSession = null;
+        this.projectId = projectId;
+        this.endpoint = endpoint;
+        // 生成或获取用户唯一标识
+        this.uid = this.getUserId();
+        // 收集用户环境信息
         this.userEnvInfo = this.collectUserEnvInfo();
         this.setupErrorCapture();
     }
-    static getInstance() {
+    static getInstance(projectId, endpoint) {
         if (!TrackPoint.instance) {
-            TrackPoint.instance = new TrackPoint();
+            TrackPoint.instance = new TrackPoint(projectId, endpoint);
         }
         return TrackPoint.instance;
     }
@@ -79,7 +85,7 @@ class TrackPoint {
                     events: this.currentSession.events
                 },
                 userEnvInfo: this.userEnvInfo,
-                projectId: this.config.projectId
+                projectId: this.projectId
             };
             this.requestQueue.push(trackData);
             this.processQueue();
@@ -149,7 +155,7 @@ class TrackPoint {
         };
     }
     collectUserEnvInfo() {
-        return {
+        const envInfo = {
             browserName: 'Chrome', // 简化示例，实际应该检测
             browserVersion: '1.0',
             osName: 'Windows',
@@ -162,8 +168,10 @@ class TrackPoint {
             userAgent: navigator.userAgent,
             languageRaw: navigator.languages.join(','),
             referrer: document.referrer,
-            pageTitle: document.title
+            pageTitle: document.title,
+            uid: this.uid
         };
+        return envInfo;
     }
     setupErrorCapture() {
         window.addEventListener('error', (event) => {
@@ -188,17 +196,24 @@ class TrackPoint {
         try {
             const data = this.requestQueue.shift();
             if (data) {
-                console.log('Sending data to server:', JSON.stringify(data, null, 2));
+                console.log('Sending track request:', {
+                    url: this.config.apiUrl,
+                    data: JSON.stringify(data, null, 2),
+                    projectId: this.projectId
+                });
                 const response = await fetch(this.config.apiUrl, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin
+                    },
                     body: JSON.stringify(data)
                 });
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    console.error('Server response:', response.status, errorText);
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
+                const responseText = await response.text();
+                console.log('Server response:', {
+                    status: response.status,
+                    text: responseText
+                });
             }
         }
         catch (error) {
@@ -217,12 +232,25 @@ class TrackPoint {
             case EventName.CLICK_EVENT: return 'click';
             case EventName.PAGE_LEAVE_EVENT: return 'leave';
             case EventName.ERROR_EVENT: return 'error';
+            case EventName.SEARCH_EVENT: return 'custom';
+            case EventName.SHARE_EVENT: return 'custom';
+            case EventName.CLOSE_EVENT: return 'custom';
             default: return 'custom';
         }
     }
+    getUserId() {
+        // 尝试从 localStorage 获取已存在的 UID
+        let uid = localStorage.getItem('track_uid');
+        // 如果不存在，则生成新的 UID 并存储
+        if (!uid) {
+            uid = uuidv4();
+            localStorage.setItem('track_uid', uid);
+        }
+        return uid;
+    }
 }
 TrackPoint.lastPageViewTime = 0;
-export const trackPoint = TrackPoint.getInstance();
+export const trackPoint = TrackPoint.getInstance('projectId', 'endpoint');
 export const register = (config) => trackPoint.register(config);
 export const sendEvent = (eventName, params) => trackPoint.sendEvent(eventName, params);
 export const addCommonParams = (params) => trackPoint.addCommonParams(params);

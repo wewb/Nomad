@@ -6,6 +6,7 @@ import {
 } from 'tdesign-react';
 import request from '../../utils/request';
 import { formatDateTime } from '../../utils/date';
+import { getCurrentUser } from '../../services/auth';
 const { FormItem } = Form;
 
 interface Endpoint {
@@ -28,6 +29,7 @@ interface Application {
 
 export function ApplicationDetail() {
   const { id } = useParams<{ id: string }>();
+  const [currentUser, setCurrentUser] = useState<any>(null);
   const [application, setApplication] = useState<Application | null>(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -38,6 +40,9 @@ export function ApplicationDetail() {
   const [deleteTimer, setDeleteTimer] = useState<number | null>(null);
   const [form] = Form.useForm();
   const [endpointForm] = Form.useForm();
+  
+  // 检查当前用户是否为管理员
+  const isAdmin = currentUser?.role === 'admin' ;
 
   const endpointColumns = [
     { title: '名称', colKey: 'name', width: 200 },
@@ -61,39 +66,98 @@ export function ApplicationDetail() {
   ];
 
   useEffect(() => {
+    const loadUser = async () => {
+      try {
+        const user = await getCurrentUser();
+        console.log('Current user:', user);
+        setCurrentUser(user);
+      } catch (error) {
+        console.error('Failed to load user:', error);
+      }
+    };
+    
+    loadUser();
+  }, []);
+
+  useEffect(() => {
     fetchApplication();
   }, [id]);
 
   const fetchApplication = async () => {
     try {
+      setLoading(true);
       const response = await request.get(`/api/app/${id}`);
+      
+      // 添加调试日志查看响应结构
       console.log('Application response:', response);
       
-      if (!response || typeof response !== 'object') {
-        throw new Error('Invalid response data');
-      }
-
-      setApplication(response);
-      form.setFieldsValue({
-        projectId: response.projectId,
-        name: response.name,
-        description: response.description,
-      });
+      // 检查响应结构，根据实际情况调整
+      const applicationData = response.data || response;
+      
+      setApplication(applicationData);
+      
+      // 设置表单初始值，确保使用正确的属性路径
+      form.setFields([
+        { name: 'projectId', value: applicationData.projectId },
+        { name: 'name', value: applicationData.name },
+        { name: 'description', value: applicationData.description }
+      ]);
+      
+      setLoading(false);
     } catch (error) {
       console.error('Failed to fetch application:', error);
       MessagePlugin.error('获取应用详情失败');
-    } finally {
       setLoading(false);
     }
   };
 
+  const handleSubmit = (values: any) => {
+    console.log('Form submitted with values:', values);
+    
+    // 直接从表单获取当前值
+    const formValues = form.getFieldsValue(true);
+    console.log('Form values directly from form:', formValues);
+    
+    // 使用从表单直接获取的值
+    if (!formValues.name) {
+      MessagePlugin.warning('应用名称不能为空');
+      return;
+    }
+    
+    // 传递从表单直接获取的值
+    handleSave(formValues);
+  };
+
   const handleSave = async (values: any) => {
     try {
-      await request.put(`/api/app/${id}`, values);
+      console.log('Saving application with values:', values);
+      console.log('Application ID:', id);
+      
+      // 确保请求正确发送
+      const response = await request.put(`/api/app/${id}`, {
+        name: values.name,
+        description: values.description || ''
+      });
+      
+      console.log('Save response:', response);
+      
+      // 更新本地应用数据，避免重新加载
+      if (application) {
+        const updatedApplication = {
+          ...application,
+          name: values.name,
+          description: values.description || ''
+        };
+        setApplication(updatedApplication);
+      }
+      
       MessagePlugin.success('保存成功');
       setIsEditing(false);
-      fetchApplication();
+      
+      // 重新加载可能导致数据丢失，暂时注释掉
+      // fetchApplication();
     } catch (error) {
+      console.error('Failed to save application:', error);
       MessagePlugin.error('保存失败');
     }
   };
@@ -185,34 +249,62 @@ export function ApplicationDetail() {
     }
   };
 
+  // 检查 isEditing 状态是否正确切换
+  const handleEditClick = () => {
+    console.log('Edit button clicked, setting isEditing to true');
+    setIsEditing(true);
+  };
+
+  // 修改表单初始化逻辑
+  useEffect(() => {
+    if (application) {
+      console.log('Setting form values from application:', application);
+      form.setFields([
+        { name: 'projectId', value: application.projectId },
+        { name: 'name', value: application.name },
+        { name: 'description', value: application.description }
+      ]);
+    }
+  }, [application, form]);
+
   if (loading) return <div>加载中...</div>;
   if (!application) return <div>应用不存在</div>;
+
+  console.log('Debug info:', {
+    isAdmin,
+    currentUserRole: currentUser?.role,
+    isEditing
+  });
 
   return (
     <div className="application-detail">
       <Card title="基本信息">
         <Form
           form={form}
-          onSubmit={handleSave}
-          disabled={!isEditing}
+          onSubmit={handleSubmit}
         >
           <FormItem label="应用ID" name="projectId">
-            <Input />
+            <Input disabled={true} />
           </FormItem>
           <FormItem label="名称" name="name">
-            <Input />
+            <Input disabled={!isEditing} />
           </FormItem>
           <FormItem label="描述" name="description">
-            <Input />
+            <Input disabled={!isEditing} />
           </FormItem>
           <FormItem>
+            {/* <div style={{ color: 'blue', marginBottom: '10px' }}>
+              调试信息: 当前用户角色 = {currentUser?.role}, isAdmin = {String(isAdmin)}, 
+              编辑模式 = {String(isEditing)}
+            </div> */}
+            
             {isEditing ? (
               <Space>
                 <Button theme="primary" type="submit">保存</Button>
                 <Button onClick={() => setIsEditing(false)}>取消</Button>
               </Space>
             ) : (
-              <Button onClick={() => setIsEditing(true)}>编辑</Button>
+              <Button onClick={handleEditClick}>编辑</Button>
             )}
           </FormItem>
         </Form>

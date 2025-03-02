@@ -172,52 +172,46 @@ export function EventDetail() {
 
         <Col xs={24} xl={12}>
           <Card title="用户环境信息" bordered className="detail-card">
-            <div className="env-info">
-              <div className="env-section">
+            <div className="env-sections">
+              <div className="env-section" key="browser-info">
                 <div className="env-title">
                   <BrowseIcon /> 浏览器信息
                 </div>
                 <div className="env-content">
-                  <div className="env-item">
-                    <span>浏览器：</span>
-                    <strong>{event.userEnvInfo.browserName} {event.userEnvInfo.browserVersion}</strong>
-                  </div>
-                  <div className="env-item">
-                    <span>语言：</span>
-                    <strong>{event.userEnvInfo.language}</strong>
-                  </div>
+                  {Object.entries(event.userEnvInfo).map(([key, value]) => (
+                    <div className="env-item" key={key}>
+                      <span>{key}:</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="env-section">
+              <div className="env-section" key="device-info">
                 <div className="env-title">
                   <DesktopIcon /> 系统信息
                 </div>
                 <div className="env-content">
-                  <div className="env-item">
-                    <span>操作系统：</span>
-                    <strong>{event.userEnvInfo.osName} {event.userEnvInfo.osVersion}</strong>
-                  </div>
-                  <div className="env-item">
-                    <span>设备类型：</span>
-                    <strong>{event.userEnvInfo.deviceType}</strong>
-                  </div>
-                  <div className="env-item">
-                    <span>分辨率：</span>
-                    <strong>{event.userEnvInfo.screenResolution}</strong>
-                  </div>
+                  {Object.entries(event.userEnvInfo).map(([key, value]) => (
+                    <div className="env-item" key={key}>
+                      <span>{key}:</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
                 </div>
               </div>
 
-              <div className="env-section">
+              <div className="env-section" key="location-info">
                 <div className="env-title">
                   <MapInformation2Icon /> 地区信息
                 </div>
                 <div className="env-content">
-                  <div className="env-item">
-                    <span>时区：</span>
-                    <strong>{event.userEnvInfo.timezone}</strong>
-                  </div>
+                  {Object.entries(event.userEnvInfo).map(([key, value]) => (
+                    <div className="env-item" key={key}>
+                      <span>{key}:</span>
+                      <strong>{value}</strong>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>

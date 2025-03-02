@@ -135,7 +135,7 @@ export function Layout() {
           <Outlet />
         </Content>
       </TLayout>
-      <Dropdown options={[
+      {/* <Dropdown options={[
         {
           content: '退出登录',
           value: 'logout',
@@ -145,7 +145,7 @@ export function Layout() {
         <Button variant="text">
           <UserIcon />
         </Button>
-      </Dropdown>
+      </Dropdown> */}
     </TLayout>
   );
 } 

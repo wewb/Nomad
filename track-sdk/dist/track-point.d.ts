@@ -14,8 +14,11 @@ declare class TrackPoint {
     private lastEventTime;
     private readonly DEBOUNCE_TIME;
     private currentSession;
+    private projectId;
+    private endpoint;
+    private uid;
     private constructor();
-    static getInstance(): TrackPoint;
+    static getInstance(projectId: string, endpoint: string): TrackPoint;
     register(config: TrackConfig): void;
     private initSession;
     sendEvent(eventName: EventName, params: EventParams): Promise<void>;
@@ -27,6 +30,7 @@ declare class TrackPoint {
     private shouldSample;
     private processQueue;
     private getEventType;
+    private getUserId;
 }
 export declare const trackPoint: TrackPoint;
 export declare const register: (config: TrackConfig) => void;
