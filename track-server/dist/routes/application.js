@@ -9,6 +9,8 @@ const Project_1 = require("../models/Project");
 const Event_1 = require("../models/Event");
 const auth_1 = require("../middleware/auth");
 const projectAccess_1 = require("../middleware/projectAccess");
+const User_1 = require("../models/User");
+const mongoose = require("mongoose");
 const router = express_1.default.Router();
 // 获取应用列表
 router.get('/list', auth_1.auth, async (req, res) => {
@@ -124,46 +126,50 @@ router.delete('/:id', auth_1.auth, projectAccess_1.restrictToAdmin, async (req, 
         res.status(500).json({ error: 'Failed to delete project' });
     }
 });
-// 添加端点 - 使用一个统一的处理器
+// 添加端点 - 使用嵌入式文档方式
 router.post('/:id/endpoints', auth_1.auth, async (req, res) => {
-    try {
-        console.log('Adding endpoint to app:', req.params.id, req.body);
-        const app = await Project_1.Project.findById(req.params.id);
-        if (!app) {
-            console.log('Application not found');
-            return res.status(404).json({ error: 'Application not found' });
-        }
-        // 验证请求数据
-        const { name, url, description } = req.body;
-        if (!name || !url) {
-            console.log('Missing required fields');
-            return res.status(400).json({ error: 'Name and URL are required' });
-        }
-        // 创建新端点
-        const newEndpoint = {
-            name,
-            url,
-            description: description || '',
-            createdAt: new Date()
-        };
-        // 确保 endpoints 数组存在，但不直接赋值
-        if (!app.endpoints || app.endpoints.length === 0) {
-            // 使用 Mongoose 的方法初始化数组
-            app.markModified('endpoints');
-        }
-        // 添加到应用的端点列表
-        app.endpoints.push(newEndpoint);
-        await app.save();
-        console.log('Endpoint added successfully');
-        res.status(201).json({
-            message: 'Endpoint added successfully',
-            endpoint: app.endpoints[app.endpoints.length - 1]
-        });
+  try {
+    console.log('Adding endpoint to app:', req.params.id, req.body);
+    const app = await Project_1.Project.findById(req.params.id);
+    if (!app) {
+      console.log('Application not found');
+      return res.status(404).json({ error: 'Application not found' });
     }
-    catch (error) {
-        console.error('Failed to add endpoint:', error);
-        res.status(500).json({ error: 'Failed to add endpoint' });
+    
+    // 验证请求数据
+    const { name, url, description } = req.body;
+    if (!name || !url) {
+      console.log('Missing required fields');
+      return res.status(400).json({ error: 'Name and URL are required' });
     }
+    
+    // 创建新端点
+    const newEndpoint = {
+      name,
+      url,
+      description: description || '',
+      createdAt: new Date()
+    };
+    
+    // 确保 endpoints 数组存在
+    if (!app.endpoints) {
+      app.endpoints = [];
+      app.markModified('endpoints');
+    }
+    
+    // 添加到应用的端点列表
+    app.endpoints.push(newEndpoint);
+    await app.save();
+    
+    console.log('Endpoint added successfully');
+    res.status(201).json({
+      message: 'Endpoint added successfully',
+      endpoint: app.endpoints[app.endpoints.length - 1]
+    });
+  } catch (error) {
+    console.error('Failed to add endpoint:', error);
+    res.status(500).json({ error: 'Failed to add endpoint' });
+  }
 });
 // 删除端点
 router.delete('/:id/endpoints/:endpointId', auth_1.auth, async (req, res) => {

@@ -134,20 +134,13 @@ router.delete('/:id', auth, restrictToAdmin, async (req: Request, res: Response)
   }
 });
 
-// 添加端点 - 使用一个统一的处理器
-router.post('/:id/endpoints', auth, async (req, res) => {
+// 添加端点
+router.post('/:id/endpoints', auth, restrictToAdmin, async (req, res) => {
   try {
     console.log('Adding endpoint to app:', req.params.id, req.body);
-    const app = await Project.findById(req.params.id);
-    
-    if (!app) {
-      console.log('Application not found');
-      return res.status(404).json({ error: 'Application not found' });
-    }
     
     // 验证请求数据
     const { name, url, description } = req.body;
-    
     if (!name || !url) {
       console.log('Missing required fields');
       return res.status(400).json({ error: 'Name and URL are required' });
@@ -161,20 +154,22 @@ router.post('/:id/endpoints', auth, async (req, res) => {
       createdAt: new Date()
     };
     
-    // 确保 endpoints 数组存在，但不直接赋值
-    if (!app.endpoints || app.endpoints.length === 0) {
-      // 使用 Mongoose 的方法初始化数组
-      app.markModified('endpoints');
+    // 使用 findByIdAndUpdate 而不是 save()
+    const updatedApp = await Project.findByIdAndUpdate(
+      req.params.id,
+      { $push: { endpoints: newEndpoint } },
+      { new: true, runValidators: false } // 返回更新后的文档，不运行验证器
+    );
+    
+    if (!updatedApp) {
+      console.log('Application not found');
+      return res.status(404).json({ error: 'Application not found' });
     }
     
-    // 添加到应用的端点列表
-    app.endpoints.push(newEndpoint);
-    await app.save();
-    
     console.log('Endpoint added successfully');
-    res.status(201).json({ 
+    res.status(201).json({
       message: 'Endpoint added successfully',
-      endpoint: app.endpoints[app.endpoints.length - 1] 
+      endpoint: updatedApp.endpoints[updatedApp.endpoints.length - 1]
     });
   } catch (error) {
     console.error('Failed to add endpoint:', error);
@@ -183,35 +178,21 @@ router.post('/:id/endpoints', auth, async (req, res) => {
 });
 
 // 删除端点
-router.delete('/:id/endpoints/:endpointId', auth, async (req, res) => {
+router.delete('/:id/endpoints/:endpointId', auth, restrictToAdmin, async (req, res) => {
   try {
     console.log('Deleting endpoint:', req.params.id, req.params.endpointId);
-    const app = await Project.findById(req.params.id);
     
-    if (!app) {
+    // 使用 findByIdAndUpdate 和 $pull 操作符删除端点
+    const updatedApp = await Project.findByIdAndUpdate(
+      req.params.id,
+      { $pull: { endpoints: { _id: req.params.endpointId } } },
+      { new: true, runValidators: false }
+    );
+    
+    if (!updatedApp) {
       console.log('Application not found');
       return res.status(404).json({ error: 'Application not found' });
     }
-    
-    // 确保 endpoints 数组存在
-    if (!app.endpoints) {
-      console.log('No endpoints found');
-      return res.status(404).json({ error: 'No endpoints found' });
-    }
-    
-    // 查找端点索引
-    const endpointIndex = app.endpoints.findIndex(
-      endpoint => endpoint._id.toString() === req.params.endpointId
-    );
-    
-    if (endpointIndex === -1) {
-      console.log('Endpoint not found');
-      return res.status(404).json({ error: 'Endpoint not found' });
-    }
-    
-    // 删除端点
-    app.endpoints.splice(endpointIndex, 1);
-    await app.save();
     
     console.log('Endpoint deleted successfully');
     res.json({ message: 'Endpoint deleted successfully' });

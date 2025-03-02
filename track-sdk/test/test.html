@@ -47,17 +47,38 @@
     <button data-track-click="test-button">Test Button</button>
 
     <script type="module">
+        // 从 index.js 导入所有内容
         import { register, sendEvent, EventName } from '../dist/index.js';
 
-        console.log('SDK loaded, registering...');
+        // console.log('SDK loaded, registering...');
 
-        // 初始化 SDK
+        // 确保 apiUrl 是正确的
         register({
             projectId: 'test-project',
             apiUrl: 'http://localhost:3000/api/track'
         });
 
-        console.log('SDK registered');
+        // console.log('SDK registered');
+        
+        // 修改关闭广告按钮的处理
+        const closeAdButton = document.querySelector('[data-track-click="close-ad"]');
+        if (closeAdButton) {
+            // 移除原有事件监听器
+            const newCloseButton = closeAdButton.cloneNode(true);
+            closeAdButton.parentNode.replaceChild(newCloseButton, closeAdButton);
+            
+            // 添加新的事件监听器
+            newCloseButton.addEventListener('click', (e) => {
+                console.log('Close ad button clicked');
+                e.target.closest('.ad-card').style.display = 'none';
+                
+                // 发送事件但不强制立即发送
+                sendEvent(EventName.CLOSE_EVENT, {
+                    element: 'ad-card',
+                    timeOnPage: Date.now()
+                });
+            });
+        }
 
         // 处理搜索事件
         document.querySelector('[data-track-click="search-submit"]').addEventListener('click', () => {
@@ -65,11 +86,6 @@
             if (keyword) {
                 // 搜索事件会被 SDK 自动记录
             }
-        });
-
-        // 处理广告关闭
-        document.querySelector('[data-track-click="close-ad"]').addEventListener('click', (e) => {
-            e.target.closest('.ad-card').style.display = 'none';
         });
     </script>
 </body>

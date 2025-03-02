@@ -35,7 +35,7 @@ export interface UserEnvInfo {
     screenResolution: string;
     language: string;
     timezone: string;
-    uid?: string;
+    uid: string;
     timestamp: number;
     userAgent: string;
     languageRaw: string;

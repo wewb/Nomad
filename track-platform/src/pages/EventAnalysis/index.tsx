@@ -4,6 +4,7 @@ import type { PrimaryTableCol } from 'tdesign-react';
 import { useNavigate } from 'react-router-dom';
 import { ChartIcon } from 'tdesign-icons-react';
 import ReactECharts from 'echarts-for-react';
+import axios from 'axios';
 
 interface EventData {
   eventName: string;
@@ -22,23 +23,18 @@ export function EventAnalysis() {
   ]);
   const navigate = useNavigate();
 
-  const fetchEventData = async () => {
+  const fetchEventAnalysis = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const [startDate, endDate] = dateRange;
-      const params = new URLSearchParams({
-        startDate: startDate.toISOString(),
-        endDate: endDate.toISOString()
+      const response = await axios.get('/api/track/analysis', {
+        params: {
+          startDate: dateRange[0].toISOString(),
+          endDate: dateRange[1].toISOString()
+        }
       });
-      
-      const response = await fetch(`/api/track/analysis?${params}`);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      setData(data);
+      setData(response.data as EventData[]);
     } catch (error) {
-      console.error('Failed to fetch event data:', error);
+      console.error('Error fetching event analysis:', error);
       MessagePlugin.error('获取数据失败');
     } finally {
       setLoading(false);
@@ -46,7 +42,7 @@ export function EventAnalysis() {
   };
 
   useEffect(() => {
-    fetchEventData();
+    fetchEventAnalysis();
   }, [dateRange]);
 
   const columns: PrimaryTableCol<EventData>[] = [

@@ -12,6 +12,15 @@ const projectAccess_1 = require("../middleware/projectAccess");
 const router = express_1.default.Router();
 const lastPageViewTime = {}; // 存储每个项目的最后页面访问时间
 const DEBOUNCE_TIME = 500; // 防抖时间 500ms
+// 添加调试日志
+router.use((req, res, next) => {
+    console.log('Track API request received:', {
+        method: req.method,
+        url: req.url,
+        body: req.method === 'POST' ? JSON.stringify(req.body).substring(0, 200) : null
+    });
+    next();
+});
 // 验证端点权限的中间件
 async function validateEndpoint(req, res, next) {
     try {
@@ -218,12 +227,52 @@ router.delete('/:id', auth_1.auth, projectAccess_1.restrictToAdmin, async (req, 
 router.get('/analysis', async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
+        console.log('Stats request with raw params:', req.query);
+        
+        // 验证日期参数
+        if (!startDate || !endDate) {
+            console.log('Missing date parameters');
+            return res.status(400).json({ error: 'Missing date parameters' });
+        }
+        
+        // 尝试解析日期
+        let parsedStartDate, parsedEndDate;
+        try {
+            parsedStartDate = new Date(startDate);
+            parsedEndDate = new Date(endDate);
+            
+            // 检查日期是否有效
+            if (isNaN(parsedStartDate.getTime()) || isNaN(parsedEndDate.getTime())) {
+                throw new Error('Invalid date format');
+            }
+        } catch (error) {
+            console.log('Date parsing error:', error);
+            return res.status(400).json({ error: 'Invalid date format' });
+        }
+        
+        // 确保有足够的数据进行分析
+        const eventCount = await Event_1.Event.countDocuments({
+            createdAt: {
+                $gte: parsedStartDate,
+                $lte: parsedEndDate
+            }
+        });
+        
+        console.log('Event count for analysis:', eventCount);
+        
+        // 如果没有事件，返回空数组
+        if (eventCount === 0) {
+            console.log('No events found for analysis period');
+            return res.json([]);
+        }
+        
+        // 完全避免使用聚合管道中的除法
         const events = await Event_1.Event.aggregate([
             {
                 $match: {
                     createdAt: {
-                        $gte: new Date(startDate),
-                        $lte: new Date(endDate)
+                        $gte: parsedStartDate,
+                        $lte: parsedEndDate
                     }
                 }
             },
@@ -258,7 +307,7 @@ router.get('/analysis', async (req, res) => {
                     count: { $sum: 1 },
                     uniqueUsers: { $addToSet: '$uniqueId' },
                     lastTriggered: { $max: '$createdAt' },
-                    timestamps: { $push: '$createdAt' }
+                    firstTriggered: { $min: '$createdAt' }
                 }
             },
             {
@@ -267,32 +316,53 @@ router.get('/analysis', async (req, res) => {
                     count: 1,
                     uniqueUsers: { $size: '$uniqueUsers' },
                     lastTriggered: 1,
-                    avgDuration: {
-                        $divide: [
-                            {
-                                $subtract: [
-                                    { $max: '$timestamps' },
-                                    { $min: '$timestamps' }
-                                ]
-                            },
-                            { $subtract: ['$count', 1] }
-                        ]
-                    }
+                    firstTriggered: 1
                 }
             },
             {
                 $sort: { count: -1 }
             }
         ]);
-        res.json(events.map(event => ({
-            ...event,
-            avgDuration: event.avgDuration / 1000, // 转换为秒
-            lastTriggered: event.lastTriggered.toISOString()
-        })));
+
+        console.log('Analysis results count:', events.length);
+        
+        // 在 Node.js 中计算平均持续时间，完全避免除以零
+        const processedEvents = events.map(event => {
+            let avgDuration = 0;
+            
+            // 只有当事件数量大于1时才计算平均持续时间
+            if (event.count > 1) {
+                try {
+                    const durationMs = event.lastTriggered - event.firstTriggered;
+                    avgDuration = durationMs / (event.count - 1) / 1000; // 转换为秒
+                    
+                    // 检查计算结果是否有效
+                    if (isNaN(avgDuration) || !isFinite(avgDuration)) {
+                        console.log('Invalid avgDuration calculation for event:', event.eventName);
+                        avgDuration = 0;
+                    }
+                } catch (error) {
+                    console.error('Error calculating avgDuration:', error);
+                    avgDuration = 0;
+                }
+            }
+            
+            return {
+                ...event,
+                avgDuration,
+                lastTriggered: event.lastTriggered.toISOString(),
+                firstTriggered: event.firstTriggered.toISOString()
+            };
+        });
+        
+        res.json(processedEvents);
     }
     catch (error) {
         console.error('Error fetching event analysis:', error);
-        res.status(500).json({ error: 'Internal server error' });
+        res.status(500).json({ 
+            error: 'Internal server error', 
+            message: error.message
+        });
     }
 });
 // 获取总体统计数据
@@ -300,36 +370,12 @@ router.get('/stats/total', async (req, res) => {
     try {
         const totalEvents = await Event_1.Event.countDocuments();
         
-        // 修改独立用户计算逻辑
-        // 使用多种字段组合来识别唯一用户
+        // 使用 userEnvInfo.uid 来计算独立用户数
         const uniqueUsers = await Event_1.Event.aggregate([
-            { $match: { "userEnvInfo": { $exists: true } }},
-            { $project: {
-                // 如果有 uid 就用 uid，否则使用 userAgent + browserName + osName + screenResolution 的组合
-                uniqueId: { 
-                    $cond: [
-                        { $and: [
-                            { $ne: ["$userEnvInfo.uid", null] },
-                            { $ne: ["$userEnvInfo.uid", ""] }
-                        ]},
-                        "$userEnvInfo.uid",
-                        { $concat: [
-                            { $ifNull: ["$userEnvInfo.userAgent", ""] },
-                            "-",
-                            { $ifNull: ["$userEnvInfo.browserName", ""] },
-                            "-",
-                            { $ifNull: ["$userEnvInfo.osName", ""] },
-                            "-",
-                            { $ifNull: ["$userEnvInfo.screenResolution", ""] }
-                        ]}
-                    ]
-                }
-            }},
-            { $group: { _id: "$uniqueId" }},
+            { $match: { "userEnvInfo.uid": { $exists: true } }},
+            { $group: { _id: "$userEnvInfo.uid" }},
             { $count: "count" }
         ]).then(result => (result.length > 0 ? result[0].count : 0));
-        
-        console.log('Stats calculation:', { totalEvents, uniqueUsers });
         
         res.json({
             totalEvents,
@@ -361,6 +407,7 @@ router.get('/:id', auth_1.auth, async (req, res) => {
 // 修改事件处理路由，确保正确处理会话数据
 router.post('/collect', async (req, res) => {
   try {
+    console.log('Collect endpoint hit with data:', JSON.stringify(req.body).substring(0, 200));
     const { projectId, type, data, userEnvInfo } = req.body;
     
     // 确保 userEnvInfo 包含 uid

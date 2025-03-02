@@ -44,7 +44,7 @@ export interface UserEnvInfo {
   screenResolution: string;
   language: string;
   timezone: string;
-  uid?: string;
+  uid: string;
   timestamp: number;
   userAgent: string;          // 原始 UA
   languageRaw: string;        // 原始语言设置

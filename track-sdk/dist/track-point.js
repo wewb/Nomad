@@ -1,7 +1,6 @@
 import { EventName } from './types.js';
-import { v4 as uuidv4 } from 'uuid';
 class TrackPoint {
-    constructor(projectId, endpoint) {
+    constructor() {
         this.commonParams = {};
         this.requestQueue = [];
         this.isProcessingQueue = false;
@@ -12,17 +11,12 @@ class TrackPoint {
         this.lastEventTime = {};
         this.DEBOUNCE_TIME = 500;
         this.currentSession = null;
-        this.projectId = projectId;
-        this.endpoint = endpoint;
-        // 生成或获取用户唯一标识
-        this.uid = this.getUserId();
-        // 收集用户环境信息
         this.userEnvInfo = this.collectUserEnvInfo();
         this.setupErrorCapture();
     }
-    static getInstance(projectId, endpoint) {
+    static getInstance() {
         if (!TrackPoint.instance) {
-            TrackPoint.instance = new TrackPoint(projectId, endpoint);
+            TrackPoint.instance = new TrackPoint();
         }
         return TrackPoint.instance;
     }
@@ -64,7 +58,7 @@ class TrackPoint {
             events: []
         };
     }
-    async sendEvent(eventName, params) {
+    async sendEvent(eventName, params, sendImmediately = false) {
         if (!this.shouldSample() || !this.currentSession)
             return;
         // 添加事件到当前会话
@@ -74,8 +68,10 @@ class TrackPoint {
             data: params
         };
         this.currentSession.events.push(event);
-        // 只在页面离开时发送完整会话数据
-        if (eventName === EventName.PAGE_LEAVE_EVENT) {
+        console.log('Event added to session:', event);
+        // 在页面离开时或立即发送选项为 true 时发送数据
+        if (eventName === EventName.PAGE_LEAVE_EVENT || sendImmediately) {
+            console.log('Preparing to send event data...');
             const trackData = {
                 type: 'session',
                 data: {
@@ -85,8 +81,9 @@ class TrackPoint {
                     events: this.currentSession.events
                 },
                 userEnvInfo: this.userEnvInfo,
-                projectId: this.projectId
+                projectId: this.config.projectId
             };
+            console.log('Track data prepared:', JSON.stringify(trackData).substring(0, 200));
             this.requestQueue.push(trackData);
             this.processQueue();
         }
@@ -155,7 +152,9 @@ class TrackPoint {
         };
     }
     collectUserEnvInfo() {
-        const envInfo = {
+        // 获取或生成 UID
+        const uid = this.getUserId();
+        return {
             browserName: 'Chrome', // 简化示例，实际应该检测
             browserVersion: '1.0',
             osName: 'Windows',
@@ -169,9 +168,25 @@ class TrackPoint {
             languageRaw: navigator.languages.join(','),
             referrer: document.referrer,
             pageTitle: document.title,
-            uid: this.uid
+            uid: uid // 添加 UID
         };
-        return envInfo;
+    }
+    generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+    getUserId() {
+        // 尝试从 localStorage 获取已存在的 UID
+        let uid = localStorage.getItem('track_uid');
+        // 如果不存在，则生成新的 UID 并存储
+        if (!uid) {
+            uid = this.generateUUID();
+            localStorage.setItem('track_uid', uid);
+        }
+        return uid;
     }
     setupErrorCapture() {
         window.addEventListener('error', (event) => {
@@ -190,30 +205,43 @@ class TrackPoint {
         return Math.random() < (this.config.uploadPercent || 1);
     }
     async processQueue() {
-        if (this.isProcessingQueue || !this.requestQueue.length)
+        if (this.isProcessingQueue || !this.requestQueue.length) {
+            console.log('Queue processing skipped:', {
+                isProcessing: this.isProcessingQueue,
+                queueLength: this.requestQueue.length
+            });
             return;
+        }
         this.isProcessingQueue = true;
+        console.log('Starting to process queue, items:', this.requestQueue.length);
         try {
             const data = this.requestQueue.shift();
             if (data) {
-                console.log('Sending track request:', {
-                    url: this.config.apiUrl,
-                    data: JSON.stringify(data, null, 2),
-                    projectId: this.projectId
-                });
-                const response = await fetch(this.config.apiUrl, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Origin': window.location.origin
-                    },
-                    body: JSON.stringify(data)
-                });
-                const responseText = await response.text();
-                console.log('Server response:', {
-                    status: response.status,
-                    text: responseText
-                });
+                console.log('Sending track request to:', this.config.apiUrl);
+                console.log('Request data:', JSON.stringify(data).substring(0, 500));
+                try {
+                    const response = await fetch(this.config.apiUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Origin': window.location.origin
+                        },
+                        body: JSON.stringify(data)
+                    });
+                    const responseText = await response.text();
+                    console.log('Server response:', {
+                        status: response.status,
+                        text: responseText
+                    });
+                    if (!response.ok) {
+                        throw new Error(`Server responded with status ${response.status}: ${responseText}`);
+                    }
+                }
+                catch (fetchError) {
+                    console.error('Network error during fetch:', fetchError);
+                    // 重新将数据放回队列以便稍后重试
+                    this.requestQueue.unshift(data);
+                }
             }
         }
         catch (error) {
@@ -221,7 +249,9 @@ class TrackPoint {
         }
         finally {
             this.isProcessingQueue = false;
+            console.log('Queue processing finished, remaining items:', this.requestQueue.length);
             if (this.requestQueue.length) {
+                console.log('Processing next item in queue...');
                 this.processQueue();
             }
         }
@@ -238,19 +268,9 @@ class TrackPoint {
             default: return 'custom';
         }
     }
-    getUserId() {
-        // 尝试从 localStorage 获取已存在的 UID
-        let uid = localStorage.getItem('track_uid');
-        // 如果不存在，则生成新的 UID 并存储
-        if (!uid) {
-            uid = uuidv4();
-            localStorage.setItem('track_uid', uid);
-        }
-        return uid;
-    }
 }
 TrackPoint.lastPageViewTime = 0;
-export const trackPoint = TrackPoint.getInstance('projectId', 'endpoint');
+export const trackPoint = TrackPoint.getInstance();
 export const register = (config) => trackPoint.register(config);
-export const sendEvent = (eventName, params) => trackPoint.sendEvent(eventName, params);
+export const sendEvent = (eventName, params, sendImmediately = false) => trackPoint.sendEvent(eventName, params, sendImmediately);
 export const addCommonParams = (params) => trackPoint.addCommonParams(params);
