@@ -15,6 +15,7 @@ import { ApiSettings } from './pages/Settings/ApiSettings';
 import { SystemSettings } from './pages/Settings/SystemSettings';
 import { EventDetail } from './pages/EventDetail';
 import { ApiDocs } from './pages/ApiDocs';
+import { ErrorLogs } from './pages/Settings/ErrorLogs';
 
 const router = createBrowserRouter([
   {
@@ -73,6 +74,10 @@ const router = createBrowserRouter([
       {
         path: 'settings/system',
         element: <SystemSettings />,
+      },
+      {
+        path: 'settings/error-logs',
+        element: <ErrorLogs />,
       },
       {
         path: 'events/:id',

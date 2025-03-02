@@ -4,6 +4,7 @@ import ReactECharts from 'echarts-for-react';
 import { DashboardIcon, UserIcon, AppIcon } from 'tdesign-icons-react';
 import axios from 'axios';
 import { ChartIcon, BrowseIcon, CodeIcon } from 'tdesign-icons-react';
+import request from '../../utils/request';
 
 interface Event {
   data: {
@@ -36,10 +37,12 @@ export function Dashboard() {
     errorCount: 0
   });
   const [trendData, setTrendData] = useState<{ date: string; count: number }[]>([]);
+  const [errorCount, setErrorCount] = useState(0);
 
   useEffect(() => {
     fetchStats();
-  }, [dateRange]);
+    fetchErrorStats();
+  }, []);
 
   const fetchStats = async () => {
     try {
@@ -82,6 +85,15 @@ export function Dashboard() {
     } catch (error) {
       console.error('Failed to fetch stats:', error);
       MessagePlugin.error('获取统计数据失败');
+    }
+  };
+
+  const fetchErrorStats = async () => {
+    try {
+      const response = await request.get('/api/track/stats/errors');
+      setErrorCount(response.totalErrors || 0);
+    } catch (error) {
+      console.error('Failed to fetch error stats:', error);
     }
   };
 
@@ -162,7 +174,7 @@ export function Dashboard() {
           <Card className="dashboard-card">
             <div className="dashboard-card__inner">
               <div className="dashboard-card__title">
-                <span>总事件数</span>
+                <span>总事件数(PV)</span>
                 <ChartIcon />
               </div>
               <div className="dashboard-card__count">{stats.totalEvents}</div>
@@ -173,7 +185,7 @@ export function Dashboard() {
           <Card className="dashboard-card">
             <div className="dashboard-card__inner">
               <div className="dashboard-card__title">
-                <span>访问人数</span>
+                <span>访问人数(UV)</span>
                 <UserIcon />
               </div>
               <div className="dashboard-card__count">{stats.uniqueUsers}</div>

@@ -122,7 +122,7 @@ export function EventAnalysis() {
           <Card bordered={false} className="dashboard-card">
             <div className="dashboard-card__inner">
               <div className="dashboard-card__title">
-                <span>独立用户数</span>
+                <span>独立用户数(UV)</span>
                 <ChartIcon />
               </div>
               <div className="dashboard-card__count">

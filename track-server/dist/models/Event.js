@@ -30,8 +30,7 @@ const eventSchema = new mongoose_1.default.Schema({
     },
     userEnvInfo: {
         type: mongoose_1.default.Schema.Types.Mixed,
-        required: true,
-        uid: String
+        required: true
     },
     createdAt: {
         type: Date,

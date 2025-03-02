@@ -3,6 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.apiRouter = void 0;
 const express_1 = __importDefault(require("express"));
 const apiAuth_1 = require("../middleware/apiAuth");
 const User_1 = require("../models/User");
@@ -113,4 +114,4 @@ router.get('/app/:id/events', apiAuth_1.apiAuth, apiAuth_1.apiCheckProjectAccess
         res.status(500).json({ error: 'Failed to fetch events' });
     }
 });
-exports.default = router;
+exports.apiRouter = router;

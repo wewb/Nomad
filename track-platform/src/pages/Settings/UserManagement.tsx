@@ -3,6 +3,7 @@ import { Table, Button, Dialog, Form, Input, Select, MessagePlugin, Space, Trans
 import type { PrimaryTableCol, TransferValue } from 'tdesign-react';
 import request from '../../utils/request';
 import { User as AuthUser } from '../../types/auth';
+import axios from 'axios';
 
 const { FormItem } = Form;
 
@@ -52,21 +53,31 @@ export function UserManagement() {
       title: '操作',
       colKey: 'operation',
       width: '25%',
-      cell: ({ row }) => (
-        <Space size={8}>
-          <Button theme="primary" variant="text" onClick={() => handleGenerateApiKey(row._id.$oid)}>
-            生成API Key
-          </Button>
-          {row.role !== 'admin' && (
-            <Button theme="warning" variant="text" onClick={() => handleConfigProjects(row)}>
-              配置权限
+      cell: ({ row }) => {
+        // 确定正确的用户ID
+        const userId = typeof row._id === 'string' ? row._id : row._id?.$oid;
+        
+        return (
+          <Space size={8}>
+            <Button theme="primary" variant="text" onClick={() => handleGenerateApiKey(userId)}>
+              生成API Key
             </Button>
-          )}
-          <Button theme={row.isActive ? 'danger' : 'success'} variant="text">
-            {row.isActive ? '禁用' : '启用'}
-          </Button>
-        </Space>
-      ),
+            {row.role !== 'admin' && (
+              <Button theme="warning" variant="text" onClick={() => handleConfigProjects(row)}>
+                配置权限
+              </Button>
+            )}
+            <Button
+              theme={row.isActive ? 'danger' : 'success'}
+              variant="outline"
+              onClick={() => toggleUserStatus(userId, row.isActive)}
+              disabled={row.email === 'admin@example.com'}
+            >
+              {row.isActive ? '禁用' : '启用'}
+            </Button>
+          </Space>
+        );
+      },
     },
   ];
 
@@ -136,6 +147,37 @@ export function UserManagement() {
       fetchUsers(); // 刷新用户列表
     } catch (error: any) {
       MessagePlugin.error(error.response?.data?.error || '创建失败');
+    }
+  };
+
+  const toggleUserStatus = async (userId: string, currentStatus: boolean) => {
+    try {
+      setLoading(true);
+      
+      // 确保有有效的用户ID
+      if (!userId) {
+        console.error('Invalid user ID');
+        MessagePlugin.error('无效的用户ID');
+        return;
+      }
+      
+      console.log('Toggling status for user ID:', userId);
+      
+      // 使用 axios
+      const token = localStorage.getItem('token');
+      await axios.patch(`/api/users/${userId}/status`, 
+        { isActive: !currentStatus },
+        { headers: { 'Authorization': `Bearer ${token}` } }
+      );
+      
+      // 更新用户列表
+      fetchUsers();
+      MessagePlugin.success(`用户已${!currentStatus ? '启用' : '禁用'}`);
+    } catch (error) {
+      console.error('Failed to toggle user status:', error);
+      MessagePlugin.error('操作失败');
+    } finally {
+      setLoading(false);
     }
   };
 

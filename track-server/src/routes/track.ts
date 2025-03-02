@@ -5,6 +5,7 @@ import geoip from 'geoip-lite';
 import { Project } from '../models/Project';
 import { auth } from '../middleware/auth';
 import { checkProjectAccess, restrictToAdmin } from '../middleware/projectAccess';
+import { UserDocument, UserRole } from '../models/User';
 
 const router = express.Router();
 const lastPageViewTime: Record<string, number> = {};  // 存储每个项目的最后页面访问时间
@@ -290,7 +291,7 @@ router.get('/analysis', async (req, res) => {
 });
 
 // 获取总体统计数据
-router.get('/stats/total', async (req, res) => {
+router.get('/stats/total', auth, async (req, res) => {
   try {
     const totalEvents = await Event.countDocuments();
     const uniqueUsers = await Event.distinct('userEnvInfo.uid').then(uids => uids.length);
@@ -321,6 +322,45 @@ router.get('/:id', auth, async (req, res) => {
   } catch (error) {
     console.error('Failed to fetch event:', error);
     res.status(500).json({ error: 'Failed to fetch event' });
+  }
+});
+
+// 获取错误统计数据
+router.get('/stats/errors', auth, async (req: Request, res: Response) => {
+  try {
+    const user = req.user as unknown as UserDocument;
+    const query: any = {
+      type: 'error_event'
+    };
+    
+    // 非管理员只能查看有权限的项目
+    if (user.role !== UserRole.ADMIN) {
+      query.projectId = { $in: user.accessibleProjects || [] };
+    }
+    
+    // 查询错误总数
+    const totalErrors = await Event.countDocuments(query);
+    
+    // 按项目分组统计错误数
+    const errorsByProject = await Event.aggregate([
+      { $match: query },
+      { $group: { _id: '$projectId', count: { $sum: 1 } } }
+    ]);
+    
+    // 按错误类型分组统计
+    const errorsByType = await Event.aggregate([
+      { $match: query },
+      { $group: { _id: '$data.type', count: { $sum: 1 } } }
+    ]);
+    
+    res.json({
+      totalErrors,
+      errorsByProject,
+      errorsByType
+    });
+  } catch (error) {
+    console.error('Failed to fetch error stats:', error);
+    res.status(500).json({ error: 'Failed to fetch error stats' });
   }
 });
 

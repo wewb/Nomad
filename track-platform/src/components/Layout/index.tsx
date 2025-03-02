@@ -15,6 +15,7 @@ import {
   ApiIcon,
   UserIcon,
   QuestionnaireIcon,
+  TaskErrorIcon,
 } from 'tdesign-icons-react';
 import styles from './Layout.module.less';
 import { clearAuthToken } from '../../services/auth';
@@ -122,6 +123,9 @@ export function Layout() {
               </MenuItem>
               <MenuItem value="/settings/system" icon={<SettingIcon />}>
                 系统设置
+              </MenuItem>
+              <MenuItem value="/settings/error-logs" icon={<TaskErrorIcon />}>
+                错误日志
               </MenuItem>
             </MenuGroup>
             <MenuGroup title="帮助中心">

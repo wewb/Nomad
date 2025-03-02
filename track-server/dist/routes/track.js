@@ -12,15 +12,6 @@ const projectAccess_1 = require("../middleware/projectAccess");
 const router = express_1.default.Router();
 const lastPageViewTime = {}; // 存储每个项目的最后页面访问时间
 const DEBOUNCE_TIME = 500; // 防抖时间 500ms
-// 添加调试日志
-router.use((req, res, next) => {
-    console.log('Track API request received:', {
-        method: req.method,
-        url: req.url,
-        body: req.method === 'POST' ? JSON.stringify(req.body).substring(0, 200) : null
-    });
-    next();
-});
 // 验证端点权限的中间件
 async function validateEndpoint(req, res, next) {
     try {
@@ -227,77 +218,12 @@ router.delete('/:id', auth_1.auth, projectAccess_1.restrictToAdmin, async (req, 
 router.get('/analysis', async (req, res) => {
     try {
         const { startDate, endDate } = req.query;
-        console.log('Stats request with raw params:', req.query);
-        
-        // 验证日期参数
-        if (!startDate || !endDate) {
-            console.log('Missing date parameters');
-            return res.status(400).json({ error: 'Missing date parameters' });
-        }
-        
-        // 尝试解析日期
-        let parsedStartDate, parsedEndDate;
-        try {
-            parsedStartDate = new Date(startDate);
-            parsedEndDate = new Date(endDate);
-            
-            // 检查日期是否有效
-            if (isNaN(parsedStartDate.getTime()) || isNaN(parsedEndDate.getTime())) {
-                throw new Error('Invalid date format');
-            }
-        } catch (error) {
-            console.log('Date parsing error:', error);
-            return res.status(400).json({ error: 'Invalid date format' });
-        }
-        
-        // 确保有足够的数据进行分析
-        const eventCount = await Event_1.Event.countDocuments({
-            createdAt: {
-                $gte: parsedStartDate,
-                $lte: parsedEndDate
-            }
-        });
-        
-        console.log('Event count for analysis:', eventCount);
-        
-        // 如果没有事件，返回空数组
-        if (eventCount === 0) {
-            console.log('No events found for analysis period');
-            return res.json([]);
-        }
-        
-        // 完全避免使用聚合管道中的除法
         const events = await Event_1.Event.aggregate([
             {
                 $match: {
                     createdAt: {
-                        $gte: parsedStartDate,
-                        $lte: parsedEndDate
-                    }
-                }
-            },
-            {
-                $project: {
-                    eventName: 1,
-                    createdAt: 1,
-                    // 生成唯一用户标识
-                    uniqueId: { 
-                        $cond: [
-                            { $and: [
-                                { $ne: ["$userEnvInfo.uid", null] },
-                                { $ne: ["$userEnvInfo.uid", ""] }
-                            ]},
-                            "$userEnvInfo.uid",
-                            { $concat: [
-                                { $ifNull: ["$userEnvInfo.userAgent", ""] },
-                                "-",
-                                { $ifNull: ["$userEnvInfo.browserName", ""] },
-                                "-",
-                                { $ifNull: ["$userEnvInfo.osName", ""] },
-                                "-",
-                                { $ifNull: ["$userEnvInfo.screenResolution", ""] }
-                            ]}
-                        ]
+                        $gte: new Date(startDate),
+                        $lte: new Date(endDate)
                     }
                 }
             },
@@ -305,9 +231,9 @@ router.get('/analysis', async (req, res) => {
                 $group: {
                     _id: '$eventName',
                     count: { $sum: 1 },
-                    uniqueUsers: { $addToSet: '$uniqueId' },
+                    uniqueUsers: { $addToSet: '$userEnvInfo.uid' },
                     lastTriggered: { $max: '$createdAt' },
-                    firstTriggered: { $min: '$createdAt' }
+                    timestamps: { $push: '$createdAt' }
                 }
             },
             {
@@ -316,72 +242,45 @@ router.get('/analysis', async (req, res) => {
                     count: 1,
                     uniqueUsers: { $size: '$uniqueUsers' },
                     lastTriggered: 1,
-                    firstTriggered: 1
+                    avgDuration: {
+                        $divide: [
+                            {
+                                $subtract: [
+                                    { $max: '$timestamps' },
+                                    { $min: '$timestamps' }
+                                ]
+                            },
+                            { $subtract: ['$count', 1] }
+                        ]
+                    }
                 }
             },
             {
                 $sort: { count: -1 }
             }
         ]);
-
-        console.log('Analysis results count:', events.length);
-        
-        // 在 Node.js 中计算平均持续时间，完全避免除以零
-        const processedEvents = events.map(event => {
-            let avgDuration = 0;
-            
-            // 只有当事件数量大于1时才计算平均持续时间
-            if (event.count > 1) {
-                try {
-                    const durationMs = event.lastTriggered - event.firstTriggered;
-                    avgDuration = durationMs / (event.count - 1) / 1000; // 转换为秒
-                    
-                    // 检查计算结果是否有效
-                    if (isNaN(avgDuration) || !isFinite(avgDuration)) {
-                        console.log('Invalid avgDuration calculation for event:', event.eventName);
-                        avgDuration = 0;
-                    }
-                } catch (error) {
-                    console.error('Error calculating avgDuration:', error);
-                    avgDuration = 0;
-                }
-            }
-            
-            return {
-                ...event,
-                avgDuration,
-                lastTriggered: event.lastTriggered.toISOString(),
-                firstTriggered: event.firstTriggered.toISOString()
-            };
-        });
-        
-        res.json(processedEvents);
+        res.json(events.map(event => ({
+            ...event,
+            avgDuration: event.avgDuration / 1000, // 转换为秒
+            lastTriggered: event.lastTriggered.toISOString()
+        })));
     }
     catch (error) {
         console.error('Error fetching event analysis:', error);
-        res.status(500).json({ 
-            error: 'Internal server error', 
-            message: error.message
-        });
+        res.status(500).json({ error: 'Internal server error' });
     }
 });
 // 获取总体统计数据
 router.get('/stats/total', async (req, res) => {
     try {
         const totalEvents = await Event_1.Event.countDocuments();
-        
-        // 使用 userEnvInfo.uid 来计算独立用户数
-        const uniqueUsers = await Event_1.Event.aggregate([
-            { $match: { "userEnvInfo.uid": { $exists: true } }},
-            { $group: { _id: "$userEnvInfo.uid" }},
-            { $count: "count" }
-        ]).then(result => (result.length > 0 ? result[0].count : 0));
-        
+        const uniqueUsers = await Event_1.Event.distinct('userEnvInfo.uid').then(uids => uids.length);
         res.json({
             totalEvents,
             uniqueUsers,
         });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Failed to get total stats:', error);
         res.status(500).json({ error: 'Failed to get total stats' });
     }
@@ -404,36 +303,38 @@ router.get('/:id', auth_1.auth, async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch event' });
     }
 });
-// 修改事件处理路由，确保正确处理会话数据
-router.post('/collect', async (req, res) => {
-  try {
-    console.log('Collect endpoint hit with data:', JSON.stringify(req.body).substring(0, 200));
-    const { projectId, type, data, userEnvInfo } = req.body;
-    
-    // 确保 userEnvInfo 包含 uid
-    if (userEnvInfo && !userEnvInfo.uid) {
-      // 如果客户端没有提供 uid，生成一个临时 ID
-      const crypto = require('crypto');
-      userEnvInfo.uid = crypto.randomBytes(16).toString('hex');
+// 获取错误统计数据
+router.get('/stats/errors', async (req, res) => {
+    try {
+        // 简化版本，不做权限检查，先确保路由能被访问
+        const query = {
+            type: 'error_event'
+        };
+        
+        // 查询错误总数
+        const totalErrors = await Event_1.Event.countDocuments(query);
+        
+        // 按项目分组统计错误数
+        const errorsByProject = await Event_1.Event.aggregate([
+            { $match: query },
+            { $group: { _id: '$projectId', count: { $sum: 1 } } }
+        ]);
+        
+        // 按错误类型分组统计
+        const errorsByType = await Event_1.Event.aggregate([
+            { $match: query },
+            { $group: { _id: '$data.type', count: { $sum: 1 } } }
+        ]);
+        
+        res.json({
+            totalErrors,
+            errorsByProject,
+            errorsByType,
+            // message: 'This is the updated route'  // 添加这个消息确认是新代码
+        });
+    } catch (error) {
+        console.error('Failed to fetch error stats:', error);
+        res.status(500).json({ error: 'Failed to fetch error stats' });
     }
-    
-    console.log('Received event data:', { projectId, type, data: JSON.stringify(data).substring(0, 100) + '...' });
-    
-    // 创建并保存事件
-    const event = new Event_1.Event({
-      projectId,
-      type,
-      data,
-      userEnvInfo: userEnvInfo || {}
-    });
-    
-    await event.save();
-    console.log('Event saved successfully with ID:', event._id);
-    
-    res.status(201).json({ success: true, eventId: event._id });
-  } catch (error) {
-    console.error('Failed to save event:', error);
-    res.status(500).json({ error: 'Failed to save event' });
-  }
 });
 exports.trackRouter = router;

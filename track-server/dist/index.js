@@ -10,6 +10,7 @@ const db_1 = require("./db");
 const application_1 = require("./routes/application");
 const user_1 = __importDefault(require("./routes/user"));
 const track_1 = require("./routes/track");
+const api_1 = require("./routes/api");
 dotenv_1.default.config();
 const PORT = process.env.PORT || 3000;
 // 创建 Express 应用
@@ -21,6 +22,7 @@ app.use(express_1.default.json());
 app.use('/api/users', user_1.default);
 app.use('/api/app', application_1.applicationRouter);
 app.use('/api/track', track_1.trackRouter);
+app.use('/api-key', api_1.apiRouter);
 // 启动服务器
 const startServer = async () => {
     try {

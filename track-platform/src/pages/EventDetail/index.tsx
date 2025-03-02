@@ -49,6 +49,164 @@ const EVENT_TYPE_MAP: Record<string, { text: string; color: TagTheme }> = {
   error: { text: '错误事件', color: 'danger' }
 };
 
+// 格式化用户环境信息
+const formatUserEnvInfo = (userEnvInfo: any) => {
+  if (!userEnvInfo) return null;
+  
+  // 浏览器和系统信息
+  const browserInfo = {
+    browserName: userEnvInfo.browserName || '未知',
+    browserVersion: userEnvInfo.browserVersion || '未知',
+    userAgent: userEnvInfo.userAgent || '未知'
+  };
+  
+  // 操作系统信息
+  const osInfo = {
+    osName: userEnvInfo.osName || '未知',
+    osVersion: userEnvInfo.osVersion || '未知',
+    deviceType: userEnvInfo.deviceType || '未知',
+    screenResolution: userEnvInfo.screenResolution || '未知'
+  };
+  
+  // 地区和语言信息
+  const regionInfo = {
+    language: userEnvInfo.language || '未知',
+    languageRaw: userEnvInfo.languageRaw || '未知',
+    timezone: userEnvInfo.timezone || '未知',
+    referrer: userEnvInfo.referrer || '未知'
+  };
+  
+  // 其他信息
+  const otherInfo = {
+    pageTitle: userEnvInfo.pageTitle || '未知',
+    uid: userEnvInfo.uid || '未知',
+    timestamp: userEnvInfo.timestamp 
+      ? new Date(userEnvInfo.timestamp).toLocaleString() 
+      : '未知'
+  };
+  
+  return { browserInfo, osInfo, regionInfo, otherInfo };
+};
+
+// 在渲染部分使用格式化函数
+const renderUserEnvInfo = (userEnvInfo: any) => {
+  const formattedInfo = formatUserEnvInfo(userEnvInfo);
+  if (!formattedInfo) return <p>无用户环境信息</p>;
+  
+  const { browserInfo, osInfo, regionInfo, otherInfo } = formattedInfo;
+  
+  const userEnvInfoStyles = {
+    container: {
+      display: 'flex',
+      flexDirection: 'column' as const,
+      gap: '20px',
+    },
+    section: {
+      border: '1px solid #e0e0e0',
+      borderRadius: '4px',
+      padding: '12px',
+      backgroundColor: '#f9f9f9',
+    },
+    sectionHeader: {
+      marginTop: 0,
+      marginBottom: '12px',
+      color: '#333',
+      fontSize: '16px',
+      borderBottom: '1px solid #eee',
+      paddingBottom: '8px',
+    },
+    grid: {
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+      gap: '8px',
+    },
+    item: {
+      display: 'flex',
+      marginBottom: '4px',
+    },
+    label: {
+      fontWeight: 500,
+      minWidth: '120px',
+      color: '#666',
+    },
+    value: {
+      color: '#333',
+    },
+  };
+
+  return (
+    <div style={userEnvInfoStyles.container}>
+      <div style={userEnvInfoStyles.section}>
+        <h4 style={userEnvInfoStyles.sectionHeader}>浏览器信息</h4>
+        <div style={userEnvInfoStyles.grid}>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>浏览器：</span>
+            <span style={userEnvInfoStyles.value}>{browserInfo.browserName} {browserInfo.browserVersion}</span>
+          </div>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>User Agent：</span>
+            <span style={{...userEnvInfoStyles.value, wordBreak: 'break-all'}}>{browserInfo.userAgent}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div style={userEnvInfoStyles.section}>
+        <h4 style={userEnvInfoStyles.sectionHeader}>系统信息</h4>
+        <div style={userEnvInfoStyles.grid}>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>操作系统：</span>
+            <span style={userEnvInfoStyles.value}>{osInfo.osName} {osInfo.osVersion}</span>
+          </div>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>设备类型：</span>
+            <span style={userEnvInfoStyles.value}>{osInfo.deviceType}</span>
+          </div>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>屏幕分辨率：</span>
+            <span style={userEnvInfoStyles.value}>{osInfo.screenResolution}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div style={userEnvInfoStyles.section}>
+        <h4 style={userEnvInfoStyles.sectionHeader}>地区信息</h4>
+        <div style={userEnvInfoStyles.grid}>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>语言：</span>
+            <span style={userEnvInfoStyles.value}>{regionInfo.language}</span>
+          </div>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>时区：</span>
+            <span style={userEnvInfoStyles.value}>{regionInfo.timezone}</span>
+          </div>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>来源页面：</span>
+            <span style={userEnvInfoStyles.value}>{regionInfo.referrer}</span>
+          </div>
+        </div>
+      </div>
+      
+      <div style={userEnvInfoStyles.section}>
+        <h4 style={userEnvInfoStyles.sectionHeader}>其他信息</h4>
+        <div style={userEnvInfoStyles.grid}>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>页面标题：</span>
+            <span style={userEnvInfoStyles.value}>{otherInfo.pageTitle}</span>
+          </div>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>用户ID：</span>
+            <span style={userEnvInfoStyles.value}>{otherInfo.uid}</span>
+          </div>
+          <div style={userEnvInfoStyles.item}>
+            <span style={userEnvInfoStyles.label}>时间戳：</span>
+            <span style={userEnvInfoStyles.value}>{otherInfo.timestamp}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -172,49 +330,7 @@ export function EventDetail() {
 
         <Col xs={24} xl={12}>
           <Card title="用户环境信息" bordered className="detail-card">
-            <div className="env-sections">
-              <div className="env-section" key="browser-info">
-                <div className="env-title">
-                  <BrowseIcon /> 浏览器信息
-                </div>
-                <div className="env-content">
-                  {Object.entries(event.userEnvInfo).map(([key, value]) => (
-                    <div className="env-item" key={key}>
-                      <span>{key}:</span>
-                      <strong>{value}</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="env-section" key="device-info">
-                <div className="env-title">
-                  <DesktopIcon /> 系统信息
-                </div>
-                <div className="env-content">
-                  {Object.entries(event.userEnvInfo).map(([key, value]) => (
-                    <div className="env-item" key={key}>
-                      <span>{key}:</span>
-                      <strong>{value}</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="env-section" key="location-info">
-                <div className="env-title">
-                  <MapInformation2Icon /> 地区信息
-                </div>
-                <div className="env-content">
-                  {Object.entries(event.userEnvInfo).map(([key, value]) => (
-                    <div className="env-item" key={key}>
-                      <span>{key}:</span>
-                      <strong>{value}</strong>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            {renderUserEnvInfo(event.userEnvInfo)}
           </Card>
         </Col>
       </Row>

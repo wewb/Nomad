@@ -82,4 +82,16 @@ export interface IUser extends mongoose.Document {
   generateApiKey(): string;
 }
 
-export const User = mongoose.model<IUser>('User', userSchema); 
+export const User = mongoose.model<IUser>('User', userSchema);
+
+// 添加导出 UserDocument 接口
+export interface UserDocument extends mongoose.Document {
+  email: string;
+  password: string;
+  role: UserRole;
+  apiKey?: string;
+  accessibleProjects: string[] | mongoose.Types.ObjectId[];
+  isActive: boolean;
+  comparePassword(candidatePassword: string): Promise<boolean>;
+  generateApiKey(): string;
+} 
