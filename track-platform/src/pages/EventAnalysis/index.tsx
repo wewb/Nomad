@@ -156,43 +156,69 @@ export function EventAnalysis() {
       <Row gutter={[16, 16]}>
         <Col span={24}>
           <Card title="分析数据概览" bordered>
-            <div className="chart-header">
-              <DateRangePicker
-                value={dateRange}
-                onChange={(value) => setDateRange(value as [Date, Date])}
-                style={{ width: 240 }}
-              />
-            </div>
-            <Row gutter={[16, 16]}>
-              <Col span={6}>
-                <Card className="stat-card" bordered>
-                  <h4>总用户数</h4>
-                  <div className="stat-value">{data?.userBehavior.totalUsers || 0}</div>
-                </Card>
+            <Row gutter={[16, 16]} align="middle" justify="space-between">
+              <Col>
+                <DateRangePicker
+                  value={dateRange}
+                  onChange={(value) => setDateRange(value as [Date, Date])}
+                  style={{ width: 240 }}
+                />
               </Col>
-              <Col span={6}>
-                <Card className="stat-card" bordered>
-                  <h4>平均会话数/用户</h4>
-                  <div className="stat-value">
-                    {data?.userBehavior.avgSessionsPerUser.toFixed(2) || 0}
-                  </div>
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card className="stat-card" bordered>
-                  <h4>平均会话时长</h4>
-                  <div className="stat-value">
-                    {data?.userBehavior.avgSessionDuration.toFixed(2) || 0}毫秒
-                  </div>
-                </Card>
-              </Col>
-              <Col span={6}>
-                <Card className="stat-card" bordered>
-                  <h4>平均页面浏览量/会话</h4>
-                  <div className="stat-value">
-                    {data?.userBehavior.avgPageViewsPerSession.toFixed(2) || 0}
-                  </div>
-                </Card>
+              <Col flex="auto">
+                <Row gutter={[24, 16]} justify="end">
+                <Col>
+                    <div className="stat-item">
+                      <div className="stat-label"></div>
+                      <div className="stat-value">
+                      </div>
+                    </div>
+                  </Col>
+                  <Col>
+                    <div className="stat-item">
+                      <div className="stat-label">总用户数</div>
+                      <div className="stat-value">{data?.userBehavior.totalUsers || 0}</div>
+                    </div>
+                  </Col>
+                  <Col>
+                    <div className="stat-item">
+                      <div className="stat-label">平均会话数/用户</div>
+                      <div className="stat-value">
+                        {data?.userBehavior.avgSessionsPerUser.toFixed(2) || 0}
+                      </div>
+                    </div>
+                  </Col>
+                  <Col>
+                    <div className="stat-item">
+                      <div className="stat-label">平均会话时长</div>
+                      <div className="stat-value">
+                        {data?.userBehavior.avgSessionDuration.toFixed(2) || 0}毫秒
+                      </div>
+                    </div>
+                  </Col>
+                  <Col>
+                    <div className="stat-item">
+                      <div className="stat-label">平均页面浏览量/会话</div>
+                      <div className="stat-value">
+                        {data?.userBehavior.avgPageViewsPerSession.toFixed(2) || 0}
+                      </div>
+                    </div>
+                  </Col>
+                  <Col>
+                    <div className="stat-item">
+                      <div className="stat-label"></div>
+                      <div className="stat-value">
+                      </div>
+                    </div>
+                  </Col>
+                  <Col>
+                    <div className="stat-item">
+                      <div className="stat-label"></div>
+                      <div className="stat-value">
+                      </div>
+                    </div>
+                  </Col>
+                  <Col></Col>
+                </Row>
               </Col>
             </Row>
           </Card>
