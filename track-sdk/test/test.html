@@ -75,7 +75,7 @@
                 // 发送事件但不强制立即发送
                 sendEvent(EventName.CLOSE_EVENT, {
                     element: 'ad-card',
-                    timeOnPage: Date.now()
+                    timeOnPage: Date.now() - performance.timing.navigationStart
                 });
             });
         }

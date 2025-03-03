@@ -95,42 +95,60 @@ const validateReferer = async (referer: string, projectId: string) => {
   return project;
 };
 
-// 接收事件数据
+// 接收事件数据 - 支持单个事件和批量事件
 router.post('/', async (req, res) => {
   try {
-    const { projectId, type, data, userEnvInfo, commonParams } = req.body;
+    const data = req.body;
     
-    // 获取客户端 IP
-    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    // 检查是否为批量请求（数组）
+    const isArray = Array.isArray(data);
+    const events = isArray ? data : [data];
     
-    // 使用 geoip-lite 获取位置信息
-    const geo = ip ? geoip.lookup(String(ip).split(',')[0]) : null;
+    // 处理每个事件
+    const savedEvents = await Promise.all(events.map(async (event) => {
+      const { projectId, type, data: eventDetails, userEnvInfo } = event;
+      
+      // 获取客户端 IP
+      const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+      
+      // 使用 geoip-lite 获取位置信息
+      const geo = ip ? geoip.lookup(String(ip).split(',')[0]) : null;
+      
+      // 合并用户环境信息和位置信息
+      const enrichedUserEnvInfo = {
+        ...userEnvInfo,
+        ipAddress: ip,
+        location: geo ? {
+          country: geo.country,
+          region: geo.region,
+          city: geo.city
+        } : undefined
+      };
+
+      // 构建事件数据结构
+      const newEventData = {
+        projectId,
+        type,
+        data: {
+          ...eventDetails,
+          timestamp: Date.now(),
+          events: eventDetails.events || []
+        },
+        userEnvInfo: enrichedUserEnvInfo
+      };
+      
+      // 创建事件记录
+      const eventModel = new Event(newEventData);
+      return await eventModel.save();
+    }));
     
-    // 合并用户环境信息和位置信息
-    const enrichedUserEnvInfo = {
-      ...userEnvInfo,
-      ipAddress: ip,
-      location: geo ? {
-        country: geo.country,
-        region: geo.region,
-        city: geo.city
-      } : undefined
-    };
-    
-    // 创建事件记录，包含通用参数
-    const event = new Event({
-      projectId,
-      type,
-      data,
-      userEnvInfo: enrichedUserEnvInfo,
-      commonParams // 存储通用参数
+    res.status(201).json({ 
+      message: `${savedEvents.length} event(s) recorded successfully`,
+      events: savedEvents.map(e => e._id)
     });
-    
-    await event.save();
-    res.status(201).json({ message: 'Event recorded successfully' });
   } catch (error) {
-    console.error('Failed to record event:', error);
-    res.status(400).json({ error: 'Failed to record event' });
+    console.error('Failed to record events:', error);
+    res.status(400).json({ error: 'Failed to record events' });
   }
 });
 

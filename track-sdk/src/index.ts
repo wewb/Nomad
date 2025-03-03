@@ -1,7 +1,12 @@
-import { sendEvent } from './track-point.js';
+import { sendEvent as _sendEvent } from './track-point.js';
 import { EventName } from './types.js';
 
+// 重新导出所需的内容
 export { trackPoint, register, addCommonParams } from './track-point.js';
+export { EventName } from './types.js';
+
+// 重新导出 sendEvent
+export const sendEvent = _sendEvent;
 
 // 添加错误捕获和上报功能
 export function initErrorTracking(projectId: string) {
@@ -15,7 +20,7 @@ export function initErrorTracking(projectId: string) {
       url: window.location.href
     };
     
-    sendEvent(EventName.ERROR_EVENT, { projectId, ...error });
+    _sendEvent(EventName.ERROR_EVENT, { projectId, ...error });
   });
   
   // 捕获全局错误
@@ -33,7 +38,7 @@ export function initErrorTracking(projectId: string) {
         url: window.location.href
       };
       
-      sendEvent(EventName.ERROR_EVENT, { projectId, ...error });
+      _sendEvent(EventName.ERROR_EVENT, { projectId, ...error });
     }
   }, true);
   

@@ -14,11 +14,16 @@ declare class TrackPoint {
     private lastEventTime;
     private readonly DEBOUNCE_TIME;
     private currentSession;
+    private eventQueue;
+    private flushInterval;
+    private flushTimer;
     private constructor();
     static getInstance(): TrackPoint;
     register(config: TrackConfig): void;
     private initSession;
-    sendEvent(eventName: EventName, params: EventParams, sendImmediately?: boolean): Promise<void>;
+    private startFlushTimer;
+    private flushEvents;
+    sendEvent(eventName: EventName, params: EventParams): Promise<void>;
     private setupActionTracking;
     private addEvent;
     addCommonParams(params: CommonParams): void;
@@ -32,6 +37,6 @@ declare class TrackPoint {
 }
 export declare const trackPoint: TrackPoint;
 export declare const register: (config: TrackConfig) => void;
-export declare const sendEvent: (eventName: EventName, params: EventParams, sendImmediately?: boolean) => Promise<void>;
+export declare const sendEvent: (eventName: EventName, params: EventParams) => Promise<void>;
 export declare const addCommonParams: (params: CommonParams) => void;
 export {};

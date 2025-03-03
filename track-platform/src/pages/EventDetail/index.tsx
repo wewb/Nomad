@@ -120,6 +120,11 @@ const renderUserEnvInfo = (userEnvInfo: any) => {
       gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
       gap: '8px',
     },
+    browserGrid: {
+      display: 'grid',
+      gridTemplateColumns: '1fr 1fr',
+      gap: '8px',
+    },
     item: {
       display: 'flex',
       marginBottom: '4px',
@@ -138,7 +143,7 @@ const renderUserEnvInfo = (userEnvInfo: any) => {
     <div style={userEnvInfoStyles.container}>
       <div style={userEnvInfoStyles.section}>
         <h4 style={userEnvInfoStyles.sectionHeader}>浏览器信息</h4>
-        <div style={userEnvInfoStyles.grid}>
+        <div style={userEnvInfoStyles.browserGrid}>
           <div style={userEnvInfoStyles.item}>
             <span style={userEnvInfoStyles.label}>浏览器：</span>
             <span style={userEnvInfoStyles.value}>{browserInfo.browserName} {browserInfo.browserVersion}</span>
@@ -207,6 +212,48 @@ const renderUserEnvInfo = (userEnvInfo: any) => {
   );
 };
 
+// 格式化事件数据
+const formatEventData = (data: any) => {
+  const formatted: any = {};
+  
+  Object.entries(data).forEach(([key, value]) => {
+    switch (key) {
+      case 'startTime':
+      case 'timestamp':
+        formatted[key] = typeof value === 'number' 
+          ? formatDateTime(new Date(value).toISOString())
+          : String(value);
+        // formatted['触发时间'] = formatted[key];
+        break;
+      case 'timeOnPage':
+        formatted[key] = `${value}ms`;
+        break;
+      case 'pageUrl':
+        formatted['页面地址'] = value;
+        break;
+      case 'pageTitle':
+        formatted['页面标题'] = value;
+        break;
+      case 'referrer':
+        formatted['来源页面'] = value || '直接访问';
+        break;
+      case 'keyword':
+        formatted['搜索词'] = value;
+        break;
+      case 'element':
+        formatted['操作元素'] = value;
+        break;
+      case 'duration':
+        formatted['停留时间'] = `${value}ms`;
+        break;
+      default:
+        formatted[key] = value;
+    }
+  });
+  
+  return formatted;
+};
+
 export function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -232,14 +279,13 @@ export function EventDetail() {
   const renderEventData = (data: any) => {
     if (!data) return null;
     
-    const items = Object.entries(data).map(([key, value]) => (
+    // 使用 formatEventData 格式化数据
+    const formattedData = formatEventData(data);
+    
+    const items = Object.entries(formattedData).map(([key, value]) => (
       <div key={key} className="event-data-item">
         <span className="key">{key}:</span>
-        <span className="value">{
-          typeof value === 'number' && key.includes('time') 
-            ? `${value}ms`
-            : String(value)
-        }</span>
+        <span className="value">{String(value)}</span>
       </div>
     ));
 
