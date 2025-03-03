@@ -60,9 +60,22 @@ router.post('/login', async (req, res) => {
 });
 
 // 用户登出
-router.post('/logout', (req, res) => {
-  // 客户端应该清除 token
-  res.json({ message: 'Logged out successfully' });
+router.post('/logout', auth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user!._id);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // 如果使用了 refresh token，这里可以将其失效
+    // user.refreshToken = undefined;
+    // await user.save();
+
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout failed' });
+  }
 });
 
 export default router; 

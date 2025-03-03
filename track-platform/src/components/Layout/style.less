@@ -15,4 +15,22 @@
 
 .t-layout__sider {
   transition: width 0.2s;
+}
+
+.t-menu {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+
+  .t-menu__group:last-child {
+    margin-top: auto;
+  }
+
+  .menu-divider {
+    cursor: default;
+    
+    &:hover {
+      background: none;
+    }
+  }
 } 

@@ -17,6 +17,7 @@ import {
   QuestionnaireIcon,
   TaskErrorIcon,
   SupportIcon,
+  LogoutIcon,
 } from 'tdesign-icons-react';
 import styles from './Layout.module.less';
 import { clearAuthToken } from '../../services/auth';
@@ -62,7 +63,7 @@ export function Layout() {
   const location = useLocation();
 
   const handleLogout = () => {
-    clearAuthToken();
+    localStorage.removeItem('token');
     navigate('/login');
   };
 
@@ -141,6 +142,12 @@ export function Layout() {
               <MenuItem value="/api-docs" icon={<QuestionnaireIcon />}>
                 API文档
               </MenuItem>
+            </MenuGroup>
+            <MenuGroup>              
+              <Menu.MenuItem onClick={handleLogout}>
+                <LogoutIcon />
+                退出登录
+              </Menu.MenuItem>
             </MenuGroup>
           </Menu>
         </Aside>
