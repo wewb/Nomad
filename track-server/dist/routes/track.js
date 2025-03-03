@@ -6,9 +6,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.trackRouter = void 0;
 const express_1 = __importDefault(require("express"));
 const Event_1 = require("../models/Event");
+const geoip_lite_1 = __importDefault(require("geoip-lite"));
 const Project_1 = require("../models/Project");
 const auth_1 = require("../middleware/auth");
 const projectAccess_1 = require("../middleware/projectAccess");
+const User_1 = require("../models/User");
 const router = express_1.default.Router();
 const lastPageViewTime = {}; // 存储每个项目的最后页面访问时间
 const DEBOUNCE_TIME = 500; // 防抖时间 500ms
@@ -85,31 +87,53 @@ const validateReferer = async (referer, projectId) => {
     }
     return project;
 };
-// 记录事件
-router.post('/', validateEndpoint, async (req, res) => {
-    var _a, _b, _c, _d;
+// 接收事件数据 - 支持单个事件和批量事件
+router.post('/', async (req, res) => {
     try {
-        console.log('Track event:', {
-            type: req.body.type,
-            projectId: (_a = req.project) === null || _a === void 0 ? void 0 : _a.projectId,
-            referer: req.headers.referer,
-            events: ((_c = (_b = req.body.data) === null || _b === void 0 ? void 0 : _b.events) === null || _c === void 0 ? void 0 : _c.length) || 0
+        const data = req.body;
+        // 检查是否为批量请求（数组）
+        const isArray = Array.isArray(data);
+        const events = isArray ? data : [data];
+        // 处理每个事件
+        const savedEvents = await Promise.all(events.map(async (event) => {
+            const { projectId, type, data: eventDetails, userEnvInfo } = event;
+            // 获取客户端 IP
+            const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+            // 使用 geoip-lite 获取位置信息
+            const geo = ip ? geoip_lite_1.default.lookup(String(ip).split(',')[0]) : null;
+            // 合并用户环境信息和位置信息
+            const enrichedUserEnvInfo = {
+                ...userEnvInfo,
+                ipAddress: ip,
+                location: geo ? {
+                    country: geo.country,
+                    region: geo.region,
+                    city: geo.city
+                } : undefined
+            };
+            // 构建事件数据结构
+            const newEventData = {
+                projectId,
+                type,
+                data: {
+                    ...eventDetails,
+                    timestamp: Date.now(),
+                    events: eventDetails.events || []
+                },
+                userEnvInfo: enrichedUserEnvInfo
+            };
+            // 创建事件记录
+            const eventModel = new Event_1.Event(newEventData);
+            return await eventModel.save();
+        }));
+        res.status(201).json({
+            message: `${savedEvents.length} event(s) recorded successfully`,
+            events: savedEvents.map(e => e._id)
         });
-        const { type, data, userEnvInfo } = req.body;
-        const projectId = (_d = req.project) === null || _d === void 0 ? void 0 : _d.projectId;
-        const event = new Event_1.Event({
-            projectId,
-            type,
-            data,
-            userEnvInfo
-        });
-        await event.save();
-        console.log('Event saved:', event._id);
-        res.status(201).json(event);
     }
     catch (error) {
-        console.error('Failed to save event:', error);
-        res.status(500).json({ error: 'Failed to save event' });
+        console.error('Failed to record events:', error);
+        res.status(400).json({ error: 'Failed to record events' });
     }
 });
 // 获取统计数据
@@ -271,7 +295,7 @@ router.get('/analysis', async (req, res) => {
     }
 });
 // 获取总体统计数据
-router.get('/stats/total', async (req, res) => {
+router.get('/stats/total', auth_1.auth, async (req, res) => {
     try {
         const totalEvents = await Event_1.Event.countDocuments();
         const uniqueUsers = await Event_1.Event.distinct('userEnvInfo.uid').then(uids => uids.length);
@@ -304,35 +328,35 @@ router.get('/:id', auth_1.auth, async (req, res) => {
     }
 });
 // 获取错误统计数据
-router.get('/stats/errors', async (req, res) => {
+router.get('/stats/errors', auth_1.auth, async (req, res) => {
     try {
-        // 简化版本，不做权限检查，先确保路由能被访问
+        const user = req.user;
         const query = {
             type: 'error_event'
         };
-        
+        // 非管理员只能查看有权限的项目
+        if (user.role !== User_1.UserRole.ADMIN) {
+            query.projectId = { $in: user.accessibleProjects || [] };
+        }
         // 查询错误总数
         const totalErrors = await Event_1.Event.countDocuments(query);
-        
         // 按项目分组统计错误数
         const errorsByProject = await Event_1.Event.aggregate([
             { $match: query },
             { $group: { _id: '$projectId', count: { $sum: 1 } } }
         ]);
-        
         // 按错误类型分组统计
         const errorsByType = await Event_1.Event.aggregate([
             { $match: query },
             { $group: { _id: '$data.type', count: { $sum: 1 } } }
         ]);
-        
         res.json({
             totalErrors,
             errorsByProject,
-            errorsByType,
-            // message: 'This is the updated route'  // 添加这个消息确认是新代码
+            errorsByType
         });
-    } catch (error) {
+    }
+    catch (error) {
         console.error('Failed to fetch error stats:', error);
         res.status(500).json({ error: 'Failed to fetch error stats' });
     }

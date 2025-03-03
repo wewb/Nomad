@@ -56,7 +56,7 @@ export class StatisticsService {
       createdAt: { $gte: startDate, $lte: endDate }
     };
 
-    const [browsers, devices, languages] = await Promise.all([
+    const [browsers, devices, languages, referrers] = await Promise.all([
       // 浏览器分布
       Event.aggregate([
         { $match: match },
@@ -68,29 +68,24 @@ export class StatisticsService {
             },
             count: { $sum: 1 }
           }
-        },
-        {
-          $project: {
-            _id: 0,
-            name: '$_id.name',
-            version: '$_id.version',
-            count: 1
-          }
         }
       ]),
 
-      // 设备类型分布
+      // 设备分布
       Event.aggregate([
         { $match: match },
         {
           $group: {
-            _id: '$userEnvInfo.deviceType',
+            _id: {
+              type: '$userEnvInfo.deviceType',
+              os: '$userEnvInfo.osName'
+            },
             count: { $sum: 1 }
           }
         }
       ]),
 
-      // 语言偏好
+      // 语言分布
       Event.aggregate([
         { $match: match },
         {
@@ -99,10 +94,52 @@ export class StatisticsService {
             count: { $sum: 1 }
           }
         }
+      ]),
+
+      // 来源分布
+      Event.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: '$data.referrer',
+            visits: { $sum: 1 },
+            uniqueUsers: { $addToSet: '$userEnvInfo.uid' }
+          }
+        },
+        {
+          $project: {
+            source: { $ifNull: ['$_id', '直接访问'] },
+            visits: 1,
+            uniqueUsers: { $size: '$uniqueUsers' },
+            _id: 0
+          }
+        },
+        { $sort: { visits: -1 } },
+        { $limit: 10 }
       ])
     ]);
 
-    return { browsers, devices, languages };
+    return {
+      browsers: browsers.map(b => ({
+        name: b?._id?.name || 'Unknown',
+        version: b?._id?.version || '',
+        count: b?.count || 0
+      })),
+      devices: devices.map(d => ({
+        type: d?._id?.type || 'Unknown',
+        os: d?._id?.os || 'Unknown',
+        count: d?.count || 0
+      })),
+      languages: languages.map(l => ({
+        code: l?._id || 'unknown',
+        count: l?.count || 0
+      })),
+      referrers: referrers.map(r => ({
+        source: r?.source || '[本机浏览]',
+        visits: r?.visits || 0,
+        uniqueUsers: r?.uniqueUsers || 0
+      }))
+    };
   }
 
   // 用户行为分析
@@ -349,7 +386,7 @@ export class StatisticsService {
           ...(step.conditions && { 'data.events.data': step.conditions })
         };
 
-        const users = await Event.aggregate([
+        let users = await Event.aggregate([
           { $match: match },
           { $unwind: '$data.events' },
           { $match: eventMatch },
@@ -419,5 +456,180 @@ export class StatisticsService {
       completedUsers: stepsData[stepsData.length - 1].count,
       overallConversion: parseFloat(overallConversion.toFixed(2))
     };
+  }
+
+  // 获取事件分析数据
+  static async getEventAnalysis(projectId: string, startDate: Date, endDate: Date) {
+    try {
+      console.log('Starting getEventAnalysis with:', { projectId, startDate, endDate });
+
+      // 验证输入参数
+      if (!projectId || !startDate || !endDate) {
+        throw new Error('Missing required parameters');
+      }
+
+      // 确保日期格式正确
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      const match = {
+        projectId,
+        createdAt: { $gte: start, $lte: end }
+      };
+
+      console.log('Executing aggregation with match:', match);
+
+      const [eventStats, userBehaviorData, envMetrics] = await Promise.all([
+        // 事件基础统计
+        Event.aggregate([
+          { $match: match },
+          { $unwind: '$data.events' },
+          {
+            $group: {
+              _id: '$data.events.type',
+              count: { $sum: 1 },
+              uniqueUsers: { $addToSet: '$userEnvInfo.uid' },
+              avgDuration: { $avg: '$data.events.data.duration' },
+              lastTriggered: { $max: '$createdAt' }
+            }
+          },
+          {
+            $project: {
+              _id: 0,
+              eventName: '$_id',
+              eventType: {
+                $cond: {
+                  if: { $in: ['$_id', ['view', 'click', 'error']] },
+                  then: 'system',
+                  else: 'custom'
+                }
+              },
+              count: 1,
+              uniqueUsers: { $size: '$uniqueUsers' },
+              avgDuration: 1,
+              lastTriggered: 1
+            }
+          }
+        ]).exec(),
+
+        // 用户行为分析
+        Event.aggregate([
+          { $match: match },
+          {
+            $group: {
+              _id: '$userEnvInfo.uid',
+              sessionCount: { $sum: 1 },
+              avgSessionDuration: { $avg: { $ifNull: ['$data.duration', 0] } },
+              totalPageViews: {
+                $sum: {
+                  $size: {
+                    $ifNull: [
+                      {
+                        $filter: {
+                          input: { $ifNull: ['$data.events', []] },
+                          as: 'event',
+                          cond: { $eq: ['$$event.type', 'view'] }
+                        }
+                      },
+                      []
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        ]).exec(),
+
+        // 环境指标
+        this.getEnvironmentMetrics(projectId, start, end)
+      ]);
+
+      console.log('Raw aggregation results:', {
+        eventStatsCount: eventStats?.length,
+        userBehaviorCount: userBehaviorData?.length,
+        envMetricsExists: !!envMetrics
+      });
+
+      // 处理用户行为数据
+      const userBehavior = {
+        totalUsers: userBehaviorData?.length || 0,
+        avgSessionsPerUser: userBehaviorData?.length ? 
+          userBehaviorData.reduce((acc, cur) => acc + (cur.sessionCount || 0), 0) / userBehaviorData.length : 0,
+        avgSessionDuration: userBehaviorData?.length ? 
+          userBehaviorData.reduce((acc, cur) => acc + (cur.avgSessionDuration || 0), 0) / userBehaviorData.length : 0,
+        avgPageViewsPerSession: userBehaviorData?.length ? 
+          userBehaviorData.reduce((acc, cur) => acc + (cur.totalPageViews || 0), 0) / userBehaviorData.length : 0
+      };
+
+      // 添加用户行为趋势统计
+      const behaviorTrends = await Event.aggregate([
+        { $match: match },
+        {
+          $group: {
+            _id: {
+              date: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } }
+            },
+            visits: { $sum: 1 },
+            users: { $addToSet: "$userEnvInfo.uid" },
+            pageViews: {
+              $sum: {
+                $size: {
+                  $filter: {
+                    input: "$data.events",
+                    as: "event",
+                    cond: { $eq: ["$$event.type", "view"] }
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            date: "$_id.date",
+            visits: 1,
+            users: { $size: "$users" },
+            pageViews: 1
+          }
+        },
+        { $sort: { date: 1 } }
+      ]);
+
+      const result = {
+        eventStats: eventStats || [],
+        userBehavior,
+        sourceAnalysis: {
+          referrers: envMetrics?.referrers || [],
+          browsers: envMetrics?.browsers || [],
+          devices: envMetrics?.devices || [],
+          languages: envMetrics?.languages || []
+        },
+        behaviorTrends
+      };
+
+      console.log('Processed result structure:', {
+        hasEventStats: result.eventStats.length > 0,
+        hasUserBehavior: result.userBehavior.totalUsers > 0,
+        hasSourceAnalysis: {
+          referrers: result.sourceAnalysis.referrers.length,
+          browsers: result.sourceAnalysis.browsers.length,
+          devices: result.sourceAnalysis.devices.length,
+          languages: result.sourceAnalysis.languages.length
+        }
+      });
+
+      return result;
+
+    } catch (error) {
+      console.error('Detailed error in getEventAnalysis:', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        projectId,
+        startDate,
+        endDate
+      });
+      throw error;
+    }
   }
 } 

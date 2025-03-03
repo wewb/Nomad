@@ -91,7 +91,7 @@ export function Layout() {
           // }
           onChange={(value) => navigate(value as string)}
         >
-          <MenuItem value="/dashboard">数据概览</MenuItem>
+          <MenuItem value="/dashboard">仪表盘</MenuItem>
           <MenuItem value="/events">事件列表</MenuItem>
           <MenuItem value="/event-analysis">事件分析</MenuItem>
         </HeadMenu>
@@ -105,7 +105,7 @@ export function Layout() {
             style={{ height: '100%' }}
             collapsed={collapsed}
           >
-            <MenuGroup title="数据概览">
+            <MenuGroup title="数据管理">
               <MenuItem value="/dashboard" icon={<DashboardIcon />}>
                 仪表盘
               </MenuItem>

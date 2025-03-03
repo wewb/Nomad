@@ -125,4 +125,24 @@ router.post('/:projectId/funnel', auth, checkProjectAccess, async (req, res) => 
   }
 });
 
+// 获取事件分析数据
+router.get('/:projectId/events', auth, checkProjectAccess, async (req, res) => {
+  try {
+    const { projectId } = req.params;
+    const startDate = new Date(req.query.startDate as string);
+    const endDate = new Date(req.query.endDate as string);
+
+    const analysis = await StatisticsService.getEventAnalysis(
+      projectId,
+      startDate,
+      endDate
+    );
+
+    res.json(analysis);
+  } catch (error) {
+    console.error('Failed to fetch event analysis:', error);
+    res.status(500).json({ error: 'Failed to fetch event analysis' });
+  }
+});
+
 export const statisticsRouter = router; 

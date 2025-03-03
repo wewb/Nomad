@@ -12,6 +12,7 @@ const application_1 = require("./routes/application");
 const track_1 = require("./routes/track");
 const auth_1 = __importDefault(require("./routes/auth"));
 const api_1 = require("./routes/api");
+const statistics_1 = require("./routes/statistics");
 const app = (0, express_1.default)();
 dotenv_1.default.config();
 // 中间件
@@ -22,6 +23,7 @@ app.use('/api/users', user_1.default);
 app.use('/api/app', application_1.applicationRouter);
 app.use('/api/track', track_1.trackRouter);
 app.use('/api/auth', auth_1.default);
+app.use('/api/statistics/', statistics_1.statisticsRouter);
 app.use('/api-key', api_1.apiRouter);
 // 错误处理中间件
 app.use((err, req, res, next) => {

@@ -17,6 +17,7 @@ import { EventDetail } from './pages/EventDetail';
 import { ApiDocs } from './pages/ApiDocs';
 import { ErrorLogs } from './pages/Settings/ErrorLogs';
 import { Documentation } from './pages/Documentation';
+import { ProjectSelect } from './pages/EventAnalysis/ProjectSelect';
 
 const router = createBrowserRouter([
   {
@@ -58,11 +59,19 @@ const router = createBrowserRouter([
       },
       {
         path: 'event-analysis',
-        element: <EventAnalysis />,
+        element: (
+          <PrivateRoute>
+            <ProjectSelect />
+          </PrivateRoute>
+        ),
       },
       {
-        path: 'event-analysis/:eventName',
-        element: <EventAnalysis />,
+        path: 'event-analysis/:projectId',
+        element: (
+          <PrivateRoute>
+            <EventAnalysis />
+          </PrivateRoute>
+        ),
       },
       {
         path: 'settings/users',

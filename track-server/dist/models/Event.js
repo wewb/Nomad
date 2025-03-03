@@ -32,6 +32,10 @@ const eventSchema = new mongoose_1.default.Schema({
         type: mongoose_1.default.Schema.Types.Mixed,
         required: true
     },
+    commonParams: {
+        type: mongoose_1.default.Schema.Types.Mixed,
+        default: {}
+    },
     createdAt: {
         type: Date,
         default: Date.now,

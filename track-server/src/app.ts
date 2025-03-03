@@ -7,6 +7,7 @@ import { applicationRouter } from './routes/application';
 import { trackRouter } from './routes/track';
 import authRouter from './routes/auth';
 import { apiRouter } from './routes/api';
+import { statisticsRouter } from './routes/statistics';
 
 const app = express();
 dotenv.config();
@@ -20,6 +21,8 @@ app.use('/api/users', userRouter);
 app.use('/api/app', applicationRouter);
 app.use('/api/track', trackRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/statistics/', statisticsRouter);
+
 app.use('/api-key', apiRouter);
 
 // 错误处理中间件

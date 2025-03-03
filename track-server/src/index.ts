@@ -6,6 +6,9 @@ import { applicationRouter } from './routes/application';
 import userRouter from './routes/user';
 import { trackRouter } from './routes/track';
 import { apiRouter } from './routes/api';
+import { statisticsRouter } from './routes/statistics';
+import authRouter from './routes/auth';
+
 dotenv.config();
 
 const PORT = process.env.PORT || 3000;
@@ -13,7 +16,7 @@ const PORT = process.env.PORT || 3000;
 // 创建 Express 应用
 const app = express();
 
-// 基础中间件
+// 中间件
 app.use(cors());
 app.use(express.json());
 
@@ -21,6 +24,9 @@ app.use(express.json());
 app.use('/api/users', userRouter);
 app.use('/api/app', applicationRouter);
 app.use('/api/track', trackRouter);
+app.use('/api/auth', authRouter);
+app.use('/api/statistics/', statisticsRouter);
+
 app.use('/api-key', apiRouter);
 
 // 启动服务器
