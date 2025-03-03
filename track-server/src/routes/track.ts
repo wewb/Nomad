@@ -95,32 +95,42 @@ const validateReferer = async (referer: string, projectId: string) => {
   return project;
 };
 
-// 记录事件
-router.post('/', validateEndpoint, async (req: Request, res: Response) => {
+// 接收事件数据
+router.post('/', async (req, res) => {
   try {
-    console.log('Track event:', {
-      type: req.body.type,
-      projectId: req.project?.projectId,
-      referer: req.headers.referer,
-      events: req.body.data?.events?.length || 0
-    });
-
-    const { type, data, userEnvInfo } = req.body;
-    const projectId = req.project?.projectId;
-
+    const { projectId, type, data, userEnvInfo, commonParams } = req.body;
+    
+    // 获取客户端 IP
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
+    
+    // 使用 geoip-lite 获取位置信息
+    const geo = ip ? geoip.lookup(String(ip).split(',')[0]) : null;
+    
+    // 合并用户环境信息和位置信息
+    const enrichedUserEnvInfo = {
+      ...userEnvInfo,
+      ipAddress: ip,
+      location: geo ? {
+        country: geo.country,
+        region: geo.region,
+        city: geo.city
+      } : undefined
+    };
+    
+    // 创建事件记录，包含通用参数
     const event = new Event({
       projectId,
       type,
       data,
-      userEnvInfo
+      userEnvInfo: enrichedUserEnvInfo,
+      commonParams // 存储通用参数
     });
-
+    
     await event.save();
-    console.log('Event saved:', event._id);
-    res.status(201).json(event);
+    res.status(201).json({ message: 'Event recorded successfully' });
   } catch (error) {
-    console.error('Failed to save event:', error);
-    res.status(500).json({ error: 'Failed to save event' });
+    console.error('Failed to record event:', error);
+    res.status(400).json({ error: 'Failed to record event' });
   }
 });
 

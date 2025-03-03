@@ -1,0 +1,111 @@
+.documentation-page {
+  padding: 20px;
+  background: var(--td-bg-color-page);
+  
+  .t-card {
+    background: var(--td-bg-color-container);
+    
+    .t-card__body {
+      padding: 0;
+    }
+  }
+  
+  .t-tabs {
+    .t-tabs__nav {
+      padding: 0 24px;
+    }
+    
+    .t-tabs__content {
+      padding: 24px;
+    }
+  }
+  
+  .markdown-content {
+    max-width: 900px;
+    margin: 0 auto;
+    line-height: 1.6;
+    color: var(--td-text-color-primary);
+    
+    h1 {
+      font-size: 28px;
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--td-component-border);
+    }
+    
+    h2 {
+      font-size: 22px;
+      margin: 32px 0 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--td-component-stroke);
+    }
+    
+    h3 {
+      font-size: 18px;
+      margin: 24px 0 12px;
+    }
+    
+    p {
+      margin: 16px 0;
+    }
+    
+    ul, ol {
+      padding-left: 24px;
+      margin: 16px 0;
+      
+      li {
+        margin-bottom: 8px;
+      }
+    }
+    
+    code {
+      background: var(--td-bg-color-component);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: monospace;
+      font-size: 14px;
+    }
+    
+    pre {
+      background: var(--td-bg-color-container-hover);
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      margin: 20px 0;
+      
+      code {
+        background: none;
+        padding: 0;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+    }
+    
+    blockquote {
+      border-left: 4px solid var(--td-brand-color);
+      padding-left: 16px;
+      margin: 20px 0;
+      color: var(--td-text-color-secondary);
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 24px 0;
+      
+      th, td {
+        border: 1px solid var(--td-component-border);
+        padding: 8px 12px;
+        text-align: left;
+      }
+      
+      th {
+        background: var(--td-bg-color-component);
+      }
+      
+      tr:nth-child(even) {
+        background: var(--td-bg-color-container-hover);
+      }
+    }
+  }
+} 

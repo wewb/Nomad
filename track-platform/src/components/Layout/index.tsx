@@ -16,6 +16,7 @@ import {
   UserIcon,
   QuestionnaireIcon,
   TaskErrorIcon,
+  SupportIcon,
 } from 'tdesign-icons-react';
 import styles from './Layout.module.less';
 import { clearAuthToken } from '../../services/auth';
@@ -48,6 +49,11 @@ const menuItems = [
     title: '事件列表',
     icon: <ChartIcon />,
   },
+  {
+    value: '/docs',
+    label: '使用说明',
+    icon: <HelpCircleIcon />
+  }
 ];
 
 export function Layout() {
@@ -129,6 +135,9 @@ export function Layout() {
               </MenuItem>
             </MenuGroup>
             <MenuGroup title="帮助中心">
+            <MenuItem value="/docs" icon={<SupportIcon />}>
+                使用说明
+              </MenuItem>
               <MenuItem value="/api-docs" icon={<QuestionnaireIcon />}>
                 API文档
               </MenuItem>

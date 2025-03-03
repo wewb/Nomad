@@ -16,6 +16,7 @@ import { SystemSettings } from './pages/Settings/SystemSettings';
 import { EventDetail } from './pages/EventDetail';
 import { ApiDocs } from './pages/ApiDocs';
 import { ErrorLogs } from './pages/Settings/ErrorLogs';
+import { Documentation } from './pages/Documentation';
 
 const router = createBrowserRouter([
   {
@@ -86,6 +87,10 @@ const router = createBrowserRouter([
       {
         path: 'api-docs',
         element: <ApiDocs />,
+      },
+      {
+        path: 'docs',
+        element: <Documentation />
       },
     ],
   },
