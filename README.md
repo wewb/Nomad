@@ -1,6 +1,11 @@
-# TrackPoint
-A comprehensive tracking solution including SDK, server, and management platform.
-
+<div align="center">
+  <a href="https://github.com/wewb/tp_WinterProject/blob/main/README.md" target="_blank">
+    <img src="https://github.com/wewb/tp_WinterProject/blob/main/track-platform/src/assets/logo.png" alt="Readest Logo" width="20%" />
+  </a>
+  <h1>Nomad - TrackPoint</h1>
+  <br>
+</div>
+  
 ## Mainly Project Structure
 
 ```
