@@ -2,31 +2,30 @@
 
 A comprehensive tracking solution including SDK, server, and management platform.
 
-## Project Structure
+## Mainly Project Structure
 
 ```
-F:\nomad_sdk\                <- 项目根目录
-├── packages/                <- 所有子包
-│   ├── track-sdk/          <- SDK 包
-│   │   ├── src/
-│   │   ├── test/
-│   │   ├── package.json
-│   │   └── tsconfig.json
+nomad_sdk/
+├── packages/
+│   ├── track-sdk/
+│   │   ├── src/              # SDK source code
+│   │   │   ├── types.ts      # Type definitions
+│   │   │   ├── track-point.ts # Core tracking logic
+│   │   │   └── index.ts      # Public API
+│   │   ├── test/             # Test files
+│   │   └── package.json
 │   │
-│   ├── track-server/       <- 服务端包
+│   ├── track-server/
 │   │   ├── src/
-│   │   ├── package.json
-│   │   └── tsconfig.json
+│   │   │   ├── routes/       # API routes
+│   │   │   ├── models/       # Database models
+│   │   │   └── index.ts      # Server entry
+│   │   └── package.json
 │   │
-│   └── track-platform/     <- 管理平台包
-│       ├── src/
-│       ├── package.json
-│       └── tsconfig.json
+│   └── track-platform/
+│       ├── src/              # React application
+│       └── package.json
 │
-├── doc/                    <- 文档目录
-│   └── Requirement.md
-├── .gitignore
-├── package.json           <- 根目录 package.json
 └── README.md
 ```
 
@@ -60,4 +59,4 @@ npm run dev:platform
 
 ## Documentation
 
-See [Requirements](./doc/Requirement.md) for detailed information. 
+See [需求文档](./doc/Requirement_ZH.md) or [Requirements](./doc/requirement.md) for detailed information. 
