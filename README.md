@@ -1,11 +1,10 @@
-# Nomad SDK
-
+# TrackPoint
 A comprehensive tracking solution including SDK, server, and management platform.
 
 ## Mainly Project Structure
 
 ```
-nomad_sdk/
+tp_WinterProject/
 ├── packages/
 │   ├── track-sdk/
 │   │   ├── src/              # SDK source code
