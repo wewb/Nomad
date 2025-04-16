@@ -96,11 +96,17 @@ router.post('/', auth, restrictToAdmin, async (req, res) => {
 // 更新应用
 router.put('/:id', auth, restrictToAdmin, async (req: Request, res: Response) => {
   try {
+    const { name, description } = req.body;
+    if (typeof name !== 'string' || typeof description !== 'string') {
+      return res.status(400).json({ error: 'Invalid input data' });
+    }
     const project = await Project.findByIdAndUpdate(
       req.params.id,
       { 
-        name: req.body.name,
-        description: req.body.description
+        $set: {
+          name,
+          description
+        }
       },
       { new: true }
     );
