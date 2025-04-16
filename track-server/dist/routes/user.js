@@ -29,7 +29,6 @@ router.post('/login', async (req, res) => {
         }
         // 验证密码
         const isValidPassword = await user.comparePassword(password);
-        console.log('Password valid:', isValidPassword);
         if (!isValidPassword) {
             console.log('Invalid password');
             return res.status(401).json({ error: 'Invalid credentials' });
