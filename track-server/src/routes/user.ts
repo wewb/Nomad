@@ -1,6 +1,7 @@
 import express, { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 import { User, UserRole } from '../models/User';
+import mongoose from 'mongoose';
 import { ApiKey } from '../models/ApiKey';
 
 import { auth, adminOnly } from '../middleware/auth';
@@ -224,6 +225,11 @@ router.post('/projects', auth, meRateLimiter, adminOnly, async (req: Request, re
 
     if (!Array.isArray(projectIds)) {
       return res.status(400).json({ error: 'Project IDs must be an array' });
+    }
+
+    // 验证 userId 是否为有效的 ObjectId
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ error: 'Invalid User ID format' });
     }
 
     // 查找用户
