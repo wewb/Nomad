@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { User, UserRole } from '../models/User';
 import { ApiKey } from '../models/ApiKey';
 
@@ -9,6 +10,13 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 
 const router = express.Router();
+
+// Rate limiter: maximum of 100 requests per 15 minutes
+const meRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
 
 // 用户登录
 router.post('/login', async (req, res) => {
@@ -180,7 +188,7 @@ router.post('/key', auth, async (req, res) => {
 });
 
 // 删除API密钥
-router.delete('/key', auth, async (req, res) => {
+router.delete('/key', auth, meRateLimiter, async (req, res) => {
   try {
     const user = await User.findById(req.user!._id);
     if (!user) {
@@ -203,7 +211,7 @@ router.delete('/key', auth, async (req, res) => {
 });
 
 // 配置用户项目权限
-router.post('/projects', auth, adminOnly, async (req: Request, res: Response) => {
+router.post('/projects', auth, meRateLimiter, adminOnly, async (req: Request, res: Response) => {
   try {
     console.log('Received request body:', req.body); // 调试日志
 
@@ -240,7 +248,7 @@ router.post('/projects', auth, adminOnly, async (req: Request, res: Response) =>
 });
 
 // 获取当前用户信息
-router.get('/me', auth, async (req, res) => {
+router.get('/me', auth, meRateLimiter, async (req, res) => {
   try {
     const user = await User.findById(req.user!._id).select('-password');
     if (!user) {
