@@ -2,6 +2,7 @@ import express from 'express';
 import { User } from '../models/User';
 import { auth } from '../middleware/auth';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 
@@ -20,7 +21,13 @@ router.get('/me', auth, async (req, res) => {
 });
 
 // 用户登录
-router.post('/login', async (req, res) => {
+const loginRateLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 5, // Limit each IP to 5 login requests per `windowMs`
+  message: { error: 'Too many login attempts. Please try again later.' },
+});
+
+router.post('/login', loginRateLimiter, async (req, res) => {
   try {
     const { email, password } = req.body;
 
