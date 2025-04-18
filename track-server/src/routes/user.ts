@@ -188,7 +188,7 @@ router.post('/key', auth, async (req, res) => {
 });
 
 // 删除API密钥
-router.delete('/key', auth, async (req, res) => {
+router.delete('/key', auth, meRateLimiter, async (req, res) => {
   try {
     const user = await User.findById(req.user!._id);
     if (!user) {
@@ -211,7 +211,7 @@ router.delete('/key', auth, async (req, res) => {
 });
 
 // 配置用户项目权限
-router.post('/projects', auth, adminOnly, async (req: Request, res: Response) => {
+router.post('/projects', auth, meRateLimiter, adminOnly, async (req: Request, res: Response) => {
   try {
     console.log('Received request body:', req.body); // 调试日志
 
