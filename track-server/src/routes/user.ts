@@ -233,7 +233,7 @@ router.post('/projects', auth, meRateLimiter, adminOnly, async (req: Request, re
     }
 
     // 查找用户
-    const user = await User.findById(userId);
+    const user = await User.findOne({ _id: { $eq: userId } });
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
