@@ -15,7 +15,7 @@ export const apiAuth = async (req: Request, res: Response, next: NextFunction) =
     console.log('Authenticating with API key:', apiKey); // 添加调试日志
     
     // 查找拥有该 API 密钥的用户
-    const user = await User.findOne({ apiKey });
+    const user = await User.findOne({ apiKey: { $eq: apiKey } });
     
     console.log('User found:', user ? 'yes' : 'no'); // 添加调试日志
     
