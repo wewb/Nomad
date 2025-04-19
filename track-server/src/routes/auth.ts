@@ -36,8 +36,13 @@ router.post('/login', loginRateLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    // 验证 email 格式
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
     // 查找用户
-    const user = await User.findOne({ email, isActive: true });
+    const user = await User.findOne({ email: { $eq: email }, isActive: true });
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
