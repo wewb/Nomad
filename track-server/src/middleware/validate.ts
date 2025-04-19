@@ -16,7 +16,10 @@ export const validateCreateUser = async (req: Request, res: Response, next: Next
     req.body = req.body.fields;
   }
 
-  const existingUser = await User.findOne({ email });
+  if (typeof email !== 'string') {
+    return res.status(400).json({ error: 'Invalid email format' });
+  }
+  const existingUser = await User.findOne({ email: { $eq: email } });
   if (existingUser) {
     return res.status(400).json({ error: 'Email already exists' });
   }
