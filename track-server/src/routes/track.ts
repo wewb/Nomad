@@ -15,6 +15,12 @@ const DEBOUNCE_TIME = 500;  // 防抖时间 500ms
 async function validateEndpoint(req: Request, res: Response, next: NextFunction) {
   try {
     const { projectId } = req.body;
+    
+    // Validate projectId
+    if (typeof projectId !== 'string' || !/^[a-zA-Z0-9_-]+$/.test(projectId)) {
+      console.log('Invalid projectId:', projectId);
+      return res.status(400).json({ error: 'Invalid projectId' });
+    }
     const referer = req.headers.referer || req.headers.origin;
     
     if (!referer) {
@@ -23,7 +29,7 @@ async function validateEndpoint(req: Request, res: Response, next: NextFunction)
     }
 
     // 查找项目及其授权端点
-    const project = await Project.findOne({ projectId }).populate('endpoints');
+    const project = await Project.findOne({ projectId: { $eq: projectId } }).populate('endpoints');
     if (!project) {
       console.log('Project not found:', projectId);
       return res.status(404).json({ error: 'Project not found' });
