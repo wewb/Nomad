@@ -71,8 +71,13 @@ router.post('/', auth, restrictToAdmin, async (req, res) => {
   try {
     const { projectId, name, description, endpoints } = req.body;
 
+    // Validate projectId
+    if (typeof projectId !== 'string') {
+      return res.status(400).json({ error: 'Invalid projectId' });
+    }
+
     // 检查 projectId 是否已存在
-    const existingProject = await Project.findOne({ projectId });
+    const existingProject = await Project.findOne({ projectId: { $eq: projectId } });
     if (existingProject) {
       return res.status(400).json({ error: 'Project ID already exists' });
     }
