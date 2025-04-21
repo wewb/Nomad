@@ -31,8 +31,15 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
+    // 验证 email 格式
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (typeof email !== 'string' || !emailRegex.test(email)) {
+      console.log('Invalid email format');
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
     // 查找用户
-    const user = await User.findOne({ email, isActive: true });
+    const user = await User.findOne({ email: { $eq: email }, isActive: true });
     console.log('User found:', user ? 'yes' : 'no');
 
     if (!user) {
