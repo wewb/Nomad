@@ -206,11 +206,19 @@ class TrackPoint {
         };
     }
     generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            const r = Math.random() * 16 | 0;
-            const v = c === 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
+        const crypto = window.crypto || self.crypto;
+        const array = new Uint8Array(16);
+        crypto.getRandomValues(array);
+        return [...array].map((byte, index) => {
+            const c = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'[index];
+            if (c === 'x') {
+                return (byte & 0xf).toString(16);
+            } else if (c === 'y') {
+                return ((byte & 0x3) | 0x8).toString(16);
+            } else {
+                return c;
+            }
+        }).join('');
     }
     getUserId() {
         // 尝试从 localStorage 获取已存在的 UID
