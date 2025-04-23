@@ -118,9 +118,15 @@ router.post('/', auth, adminOnly, validateCreateUser, async (req: Request, res: 
 // 更新用户状态 (仅管理员)
 router.patch('/:id/status', auth, adminOnly, async (req, res) => {
   try {
+    // Validate that isActive is a boolean
+    const isActive = req.body.isActive;
+    if (typeof isActive !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid value for isActive' });
+    }
+
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { isActive: req.body.isActive },
+      { isActive: { $eq: isActive } },
       { new: true }
     ).select('-password');
     
