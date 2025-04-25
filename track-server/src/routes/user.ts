@@ -12,6 +12,13 @@ import crypto from 'crypto';
 
 const router = express.Router();
 
+// Rate limiter for user status update route
+const updateUserStatusLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
 // Rate limiter: maximum of 100 requests per 15 minutes
 const meRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -116,7 +123,7 @@ router.post('/', auth, adminOnly, validateCreateUser, async (req: Request, res: 
 });
 
 // 更新用户状态 (仅管理员)
-router.patch('/:id/status', auth, adminOnly, async (req, res) => {
+router.patch('/:id/status', updateUserStatusLimiter, auth, adminOnly, async (req, res) => {
   try {
     // Validate that isActive is a boolean
     const isActive = req.body.isActive;
