@@ -1,4 +1,5 @@
 import express, { Request, Response, NextFunction } from 'express';
+import rateLimit from 'express-rate-limit';
 import { Event } from '../models/Event';
 import { Session } from '../models/Session';
 import geoip from 'geoip-lite';
@@ -325,7 +326,13 @@ router.get('/analysis', async (req, res) => {
 });
 
 // 获取总体统计数据
-router.get('/stats/total', auth, async (req, res) => {
+const statsTotalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+router.get('/stats/total', auth, statsTotalLimiter, async (req, res) => {
   try {
     const totalEvents = await Event.countDocuments();
     const uniqueUsers = await Event.distinct('userEnvInfo.uid').then(uids => uids.length);
