@@ -244,7 +244,13 @@ router.get('/list', auth, async (req, res) => {
 });
 
 // 删除事件
-router.delete('/:id', auth, restrictToAdmin, async (req, res) => {
+const deleteRateLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: 'Too many delete requests, please try again later.' },
+});
+
+router.delete('/:id', deleteRateLimiter, auth, restrictToAdmin, async (req, res) => {
   try {
     const event = await Event.findById(req.params.id);
     if (!event) {
