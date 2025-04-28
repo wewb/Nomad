@@ -82,7 +82,13 @@ router.post('/login', async (req, res) => {
 });
 
 // 获取用户列表 (仅管理员)
-router.get('/', auth, adminOnly, async (req, res) => {
+const getUsersLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+router.get('/', auth, adminOnly, getUsersLimiter, async (req, res) => {
   try {
     const users = await User.find().select('-password');
     res.json(users);
