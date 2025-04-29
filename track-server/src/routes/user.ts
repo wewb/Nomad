@@ -88,7 +88,7 @@ const getUsersLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
 });
 
-router.get('/', auth, adminOnly, getUsersLimiter, async (req, res) => {
+router.get('/', getUsersLimiter, auth, adminOnly, async (req, res) => {
   try {
     const users = await User.find().select('-password');
     res.json(users);
