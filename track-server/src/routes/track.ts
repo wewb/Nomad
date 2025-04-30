@@ -373,7 +373,13 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // 获取错误统计数据
-router.get('/stats/errors', auth, async (req: Request, res: Response) => {
+const statsErrorsLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+router.get('/stats/errors', auth, statsErrorsLimiter, async (req: Request, res: Response) => {
   try {
     const user = req.user as unknown as UserDocument;
     const query: any = {
