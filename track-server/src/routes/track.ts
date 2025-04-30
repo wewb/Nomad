@@ -222,7 +222,14 @@ router.get('/stats', async (req: Request, res: Response) => {
 });
 
 // 获取事件列表
-router.get('/list', auth, async (req, res) => {
+// Rate limiter for the /list route
+const listRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests to /list, please try again later.' },
+});
+
+router.get('/list', auth, listRateLimiter, async (req, res) => {
   try {
     const user = req.user;
     const query: any = {};
