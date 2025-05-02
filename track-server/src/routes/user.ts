@@ -154,7 +154,13 @@ router.patch('/:id/status', updateUserStatusLimiter, auth, adminOnly, async (req
 });
 
 // 生成 API Key
-router.get('/key', auth, async (req, res) => {
+const getKeyLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' }
+});
+
+router.get('/key', getKeyLimiter, auth, async (req, res) => {
   try {
     const user = await User.findById(req.user!._id);
     if (!user) {
