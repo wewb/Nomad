@@ -361,7 +361,14 @@ router.get('/stats/total', auth, statsTotalLimiter, async (req, res) => {
 });
 
 // 获取单个事件详情
-router.get('/:id', auth, async (req, res) => {
+// Rate limiter for the /stats/:id route
+const statsIdLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+router.get('/:id', auth, statsIdLimiter, async (req, res) => {
   try {
     // 确保不是 'list' 路径
     if (req.params.id === 'list') {
