@@ -187,7 +187,13 @@ router.get('/key', getKeyLimiter, auth, async (req, res) => {
 });
 
 // 创建新的API密钥 (如果已存在则替换)
-router.post('/key', auth, async (req, res) => {
+const postKeyLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 10, // limit each IP to 10 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' }
+});
+
+router.post('/key', postKeyLimiter, auth, async (req, res) => {
   try {
     const { name } = req.body;
     if (!name) {
