@@ -2,9 +2,19 @@ import express from 'express';
 import { auth } from '../middleware/auth';
 import { checkProjectAccess } from '../middleware/projectAccess';
 import { StatisticsService } from '../services/StatisticsService';
+import rateLimit from 'express-rate-limit';
 
 const router = express.Router();
 
+// Set up rate limiter: maximum of 100 requests per 15 minutes
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+// Apply rate limiter to all routes
+router.use(limiter);
 // 获取基础统计指标
 router.get('/:projectId/basic', auth, checkProjectAccess, async (req, res) => {
   try {
