@@ -1,10 +1,18 @@
 import express from 'express';
 import { apiAuth, apiAdminOnly, apiCheckProjectAccess } from '../middleware/apiAuth';
+import rateLimit from 'express-rate-limit';
 import { User } from '../models/User';
 import { Project } from '../models/Project';
 import { Event } from '../models/Event';
 
 const router = express.Router();
+
+// Define rate limiter: maximum of 100 requests per 15 minutes
+const appRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
 
 // 测试路由 - 不需要认证
 router.get('/test', (req, res) => {
@@ -53,7 +61,7 @@ router.get('/app/list', apiAuth, async (req, res) => {
 });
 
 // 获取单个应用详情 (根据用户权限)
-router.get('/app/:id', apiAuth, apiCheckProjectAccess, async (req, res) => {
+router.get('/app/:id', appRateLimiter, apiAuth, apiCheckProjectAccess, async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) {
