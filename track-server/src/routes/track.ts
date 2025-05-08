@@ -368,7 +368,7 @@ const statsIdLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later.' },
 });
 
-router.get('/:id', auth, statsIdLimiter, async (req, res) => {
+router.get('/:id', statsIdLimiter, auth, async (req, res) => {
   try {
     // 确保不是 'list' 路径
     if (req.params.id === 'list') {
