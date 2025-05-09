@@ -20,7 +20,7 @@ router.get('/test', (req, res) => {
 });
 
 // 获取用户列表 (仅管理员)
-router.get('/users/list', apiAuth, apiAdminOnly, async (req, res) => {
+router.get('/users/list', appRateLimiter, apiAuth, apiAdminOnly, async (req, res) => {
   try {
     const users = await User.find().select('-password -apiKey');
     res.json(users);
