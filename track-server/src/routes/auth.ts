@@ -72,7 +72,13 @@ router.post('/login', loginRateLimiter, async (req, res) => {
 });
 
 // 用户登出
-router.post('/logout', auth, async (req, res) => {
+const logoutRateLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 minute
+  max: 5, // Limit each IP to 5 logout requests per `windowMs`
+  message: { error: 'Too many logout attempts. Please try again later.' },
+});
+
+router.post('/logout', logoutRateLimiter, auth, async (req, res) => {
   try {
     const user = await User.findById(req.user!._id);
     if (!user) {
