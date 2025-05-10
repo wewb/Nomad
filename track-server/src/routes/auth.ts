@@ -78,7 +78,7 @@ const logoutRateLimiter = rateLimit({
   message: { error: 'Too many logout attempts. Please try again later.' },
 });
 
-router.post('/logout', auth, logoutRateLimiter, async (req, res) => {
+router.post('/logout', logoutRateLimiter, auth, async (req, res) => {
   try {
     const user = await User.findById(req.user!._id);
     if (!user) {
