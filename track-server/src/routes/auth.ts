@@ -7,7 +7,13 @@ import rateLimit from 'express-rate-limit';
 const router = express.Router();
 
 // 获取当前用户信息
-router.get('/me', auth, async (req, res) => {
+const meRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per `windowMs`
+  message: { error: 'Too many requests. Please try again later.' },
+});
+
+router.get('/me', meRateLimiter, auth, async (req, res) => {
   try {
     const user = await User.findById(req.user!._id).select('-password');
     if (!user) {
