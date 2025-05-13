@@ -31,7 +31,7 @@ router.get('/users/list', appRateLimiter, apiAuth, apiAdminOnly, async (req, res
 });
 
 // 获取应用列表 (根据用户权限)
-router.get('/app/list', apiAuth, async (req, res) => {
+router.get('/app/list', appRateLimiter, apiAuth, async (req, res) => {
   try {
     const user = req.user;
     let projects;
