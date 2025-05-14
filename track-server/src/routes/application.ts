@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import rateLimit from 'express-rate-limit';
 import { Project } from '../models/Project';
 import { Event } from '../models/Event';
 import { auth, adminOnly } from '../middleware/auth';
@@ -6,8 +7,15 @@ import { checkProjectAccess, restrictToAdmin } from '../middleware/projectAccess
 
 const router = express.Router();
 
+// Rate limiter: maximum of 100 requests per 15 minutes
+const listRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
 // 获取应用列表
-router.get('/list', auth, async (req: Request, res: Response) => {
+router.get('/list', listRateLimiter, auth, async (req: Request, res: Response) => {
   try {
     const user = req.user;
     let projects;
