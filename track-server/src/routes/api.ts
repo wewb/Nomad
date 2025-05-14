@@ -91,7 +91,7 @@ router.get('/app/:id', appRateLimiter, apiAuth, apiCheckProjectAccess, async (re
 });
 
 // 获取应用事件列表 (根据用户权限)
-router.get('/app/:id/events', apiAuth, apiCheckProjectAccess, async (req, res) => {
+router.get('/app/:id/events', appRateLimiter, apiAuth, apiCheckProjectAccess, async (req, res) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) {
