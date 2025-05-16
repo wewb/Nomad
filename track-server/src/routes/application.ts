@@ -45,7 +45,13 @@ router.get('/list', listRateLimiter, auth, async (req: Request, res: Response) =
 });
 
 // 获取单个应用详情
-router.get('/:id', auth, async (req: Request, res: Response) => {
+const detailRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+router.get('/:id', detailRateLimiter, auth, async (req: Request, res: Response) => {
   try {
     const project = await Project.findById(req.params.id);
     if (!project) {
