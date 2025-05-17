@@ -81,7 +81,13 @@ router.get('/:id', detailRateLimiter, auth, async (req: Request, res: Response) 
 });
 
 // 创建新应用
-router.post('/', auth, restrictToAdmin, async (req, res) => {
+const createRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit each IP to 50 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+router.post('/', createRateLimiter, auth, restrictToAdmin, async (req, res) => {
   try {
     const { projectId, name, description, endpoints } = req.body;
 
