@@ -148,7 +148,7 @@ router.put('/:id', auth, restrictToAdmin, async (req: Request, res: Response) =>
 });
 
 // 删除应用
-router.delete('/:id', auth, restrictToAdmin, async (req: Request, res: Response) => {
+router.delete('/:id', listRateLimiter, auth, restrictToAdmin, async (req: Request, res: Response) => {
   try {
     const project = await Project.findByIdAndDelete(req.params.id);
     if (!project) {
