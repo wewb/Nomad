@@ -166,7 +166,7 @@ router.delete('/:id', listRateLimiter, auth, restrictToAdmin, async (req: Reques
 });
 
 // 添加端点
-router.post('/:id/endpoints', auth, restrictToAdmin, async (req, res) => {
+router.post('/:id/endpoints', listRateLimiter, auth, restrictToAdmin, async (req, res) => {
   try {
     console.log('Adding endpoint to app:', req.params.id, req.body);
     
