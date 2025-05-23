@@ -209,7 +209,7 @@ router.post('/:id/endpoints', listRateLimiter, auth, restrictToAdmin, async (req
 });
 
 // 删除端点
-router.delete('/:id/endpoints/:endpointId', auth, restrictToAdmin, async (req, res) => {
+router.delete('/:id/endpoints/:endpointId', listRateLimiter, auth, restrictToAdmin, async (req, res) => {
   try {
     console.log('Deleting endpoint:', req.params.id, req.params.endpointId);
     
