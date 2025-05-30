@@ -27,7 +27,13 @@ const meRateLimiter = rateLimit({
 });
 
 // 用户登录
-router.post('/login', async (req, res) => {
+const loginRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: { error: 'Too many login attempts, please try again later.' },
+});
+
+router.post('/login', loginRateLimiter, async (req, res) => {
   try {
     console.log('Login request received:', req.body);
     const { email, password } = req.body;
