@@ -160,7 +160,14 @@ router.post('/', async (req, res) => {
 });
 
 // 获取统计数据
-router.get('/stats', async (req: Request, res: Response) => {
+// Rate limiter for the /stats route
+const statsRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: { error: 'Too many requests to /stats, please try again later.' },
+});
+
+router.get('/stats', statsRateLimiter, async (req: Request, res: Response) => {
   try {
     const { startDate, endDate } = req.query;
     console.log('Stats request:', { startDate, endDate });
