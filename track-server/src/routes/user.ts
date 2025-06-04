@@ -104,7 +104,14 @@ router.get('/', getUsersLimiter, auth, adminOnly, async (req, res) => {
 });
 
 // 创建用户
-router.post('/', auth, adminOnly, validateCreateUser, async (req: Request, res: Response) => {
+// Rate limiter for user creation route
+const createUserLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // Limit each IP to 50 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+router.post('/', createUserLimiter, auth, adminOnly, validateCreateUser, async (req: Request, res: Response) => {
   try {
     const { email, password, role } = req.body;
     
