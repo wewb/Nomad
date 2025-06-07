@@ -119,7 +119,13 @@ router.post('/', createRateLimiter, auth, restrictToAdmin, async (req, res) => {
 });
 
 // 更新应用
-router.put('/:id', auth, restrictToAdmin, async (req: Request, res: Response) => {
+const updateRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // limit each IP to 50 requests per windowMs
+  message: { error: 'Too many requests, please try again later.' },
+});
+
+router.put('/:id', updateRateLimiter, auth, restrictToAdmin, async (req: Request, res: Response) => {
   try {
     const { name, description } = req.body;
     if (typeof name !== 'string' || typeof description !== 'string') {
