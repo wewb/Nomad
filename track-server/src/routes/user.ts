@@ -263,7 +263,12 @@ router.delete('/key', auth, meRateLimiter, async (req, res) => {
 });
 
 // 配置用户项目权限
-router.post('/projects', auth, meRateLimiter, adminOnly, async (req: Request, res: Response) => {
+const projectsRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 50, // Limit each IP to 50 requests per windowMs
+});
+
+router.post('/projects', auth, meRateLimiter, projectsRateLimiter, adminOnly, async (req: Request, res: Response) => {
   try {
     console.log('Received request body:', req.body); // 调试日志
 
