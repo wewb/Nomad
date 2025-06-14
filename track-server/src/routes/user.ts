@@ -268,7 +268,7 @@ const projectsRateLimiter = rateLimit({
   max: 50, // Limit each IP to 50 requests per windowMs
 });
 
-router.post('/projects', auth, meRateLimiter, projectsRateLimiter, adminOnly, async (req: Request, res: Response) => {
+router.post('/projects', projectsRateLimiter, auth, meRateLimiter, adminOnly, async (req: Request, res: Response) => {
   try {
     console.log('Received request body:', req.body); // 调试日志
 
