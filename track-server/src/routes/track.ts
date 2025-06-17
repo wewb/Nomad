@@ -236,7 +236,7 @@ const listRateLimiter = rateLimit({
   message: { error: 'Too many requests to /list, please try again later.' },
 });
 
-router.get('/list', auth, listRateLimiter, async (req, res) => {
+router.get('/list', listRateLimiter, auth, async (req, res) => {
   try {
     const user = req.user;
     const query: any = {};
