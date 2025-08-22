@@ -12,7 +12,7 @@ export const apiAuth = async (req: Request, res: Response, next: NextFunction) =
       return res.status(401).json({ error: 'API key is required' });
     }
     
-    console.log('Authenticating with API key:', apiKey); // 添加调试日志
+    console.log('Authenticating with API key'); // 添加调试日志 (API key value redacted)
     
     // 查找拥有该 API 密钥的用户
     const user = await User.findOne({ apiKey: { $eq: apiKey } });
