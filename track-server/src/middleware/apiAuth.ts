@@ -5,8 +5,8 @@ import mongoose from 'mongoose';
 // API 密钥认证中间件
 export const apiAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    // 从查询参数中获取 API 密钥
-    const apiKey = req.query.key as string;
+    // 从请求头中获取 API 密钥
+    const apiKey = req.header('x-api-key');
     
     if (!apiKey) {
       return res.status(401).json({ error: 'API key is required' });
